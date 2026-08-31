@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#081b30" />
+    <title>BetterLoTW — Award progress, made clear</title>
+    <meta name="description" content="See your LoTW-confirmed QSOs, award progress, and next contacts in one clear dashboard." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <a class="brand" href="#top" aria-label="BetterLoTW home"><span class="brand-mark">B</span><span>Better<span>LoTW</span></span></a>
+        <nav class="nav" aria-label="Main navigation">
+          <a class="active" href="#dashboard">Dashboard</a>
+          <a href="#awards">Awards</a>
+          <a href="#how-it-works">How it works</a>
+        </nav>
+        <button class="button ghost profile-button" type="button"><span class="avatar">J</span><span>JR1BTR</span><i class="chevron"></i></button>
+      </header>
+
+      <main id="top">
+        <section class="hero" id="dashboard">
+          <div class="eyebrow"><span class="live-dot"></span>YOUR AWARD DESK</div>
+          <div class="hero-grid">
+            <div>
+              <h1>Every confirmation<br /><em>counts for something.</em></h1>
+              <p>Bring your Logbook of The World confirmations into one beautiful, useful view. Know your next country, state, grid, and award.</p>
+            </div>
+            <div class="sync-card" id="sync-card">
+              <div class="sync-card-top"><div><span class="mini-label">LOGBOOK OF THE WORLD</span><h2>Connect your log</h2></div><span class="lock-icon">⌁</span></div>
+              <form id="connect-form">
+                <label>LoTW username<input id="callsign" autocomplete="username" placeholder="e.g. JR1BTR" required /></label>
+                <label>LoTW password or app key<input id="lotw-key" autocomplete="current-password" type="password" placeholder="••••••••••••" required /></label>
+                <button class="button primary wide" type="submit"><span>Sync confirmations</span><span class="arrow">→</span></button>
+              </form>
+              <p class="privacy-note"><span>◈</span> Credentials are sent only to your configured sync service and are never stored.</p>
+              <div class="connection-help" id="connection-help" hidden></div>
+            </div>
+          </div>
+          <div class="quick-stats">
+            <div><span class="stat-value" id="confirmed-count">1,284</span><span class="stat-label">LoTW confirmations</span></div>
+            <div><span class="stat-value">19</span><span class="stat-label">new in last 30 days</span></div>
+            <div><span class="stat-value">42 yrs</span><span class="stat-label">from first QSO</span></div>
+            <button id="demo-button" class="text-button" type="button">Use demo station <span>→</span></button>
+          </div>
+        </section>
+
+        <section class="section-heading" id="awards"><div><span class="eyebrow">AWARD TRACKER</span><h2>Your awards, at a glance.</h2></div><button class="button secondary" id="sort-button" type="button">Sort: closest to finish <span class="chevron"></span></button></section>
+        <section class="award-grid" id="award-grid" aria-live="polite"></section>
+
+        <section class="activity-layout">
+          <article class="map-card">
+            <div class="card-heading"><div><span class="mini-label">DXCC PROGRESS</span><h2>Where the world is still quiet</h2></div><button class="icon-button" title="Expand map" type="button">↗</button></div>
+            <div class="map-wrap" role="img" aria-label="Stylized world map showing confirmed and needed DXCC entities">
+              <svg class="world-map" viewBox="0 0 960 430" preserveAspectRatio="xMidYMid meet">
+                <path d="M72 109l44-36 66 5 47 40-20 31-71-2-42 20-43-19zM172 171l47 6 26 34-17 43 25 51-19 57-28-11-10-52-33-48 9-29zM298 89l35-27 69 8 19 22-21 35-55 7-35-18zM337 146l53 3 25 27-10 32-38 1-35-31zM423 84l65-27 98 7 64 31 9 31-76-4-44 16-61-9-47 3zM468 146l65-6 44 26 13 33-37 22-64-10-29-38zM516 231l32 4 22 42-15 70-30 38-20-56 11-51zM627 151l70-17 71 19 42 48-22 38-71-10-41 16-37-44zM710 239l56 1 27 39-15 68-43 16-28-59zM818 295l49-6 30 28-19 30-48-10z" />
+                <g class="map-pins confirmed"><circle cx="149" cy="119" r="7"/><circle cx="189" cy="215" r="7"/><circle cx="337" cy="112" r="7"/><circle cx="380" cy="178" r="7"/><circle cx="474" cy="100" r="7"/><circle cx="528" cy="176" r="7"/><circle cx="589" cy="111" r="7"/><circle cx="681" cy="168" r="7"/><circle cx="746" cy="191" r="7"/><circle cx="761" cy="278" r="7"/><circle cx="846" cy="321" r="7"/></g>
+                <g class="map-pins needed"><circle cx="113" cy="125" r="7"/><circle cx="250" cy="123" r="7"/><circle cx="438" cy="99" r="7"/><circle cx="610" cy="190" r="7"/><circle cx="734" cy="148" r="7"/><circle cx="799" cy="180" r="7"/></g>
+              </svg>
+              <div class="map-legend"><span><i class="legend confirmed"></i>Confirmed</span><span><i class="legend needed"></i>Needed</span></div>
+            </div>
+            <div class="next-up"><div><span class="mini-label">NEXT UP</span><strong>8 more current entities for DXCC Honor Roll</strong></div><button class="button secondary" type="button">View entities</button></div>
+          </article>
+          <aside class="feed-card">
+            <div class="card-heading"><div><span class="mini-label">FRESH CONFIRMATIONS</span><h2>Latest in your log</h2></div><button class="text-button" type="button">All activity →</button></div>
+            <div class="feed" id="feed"></div>
+          </aside>
+        </section>
+
+        <section class="paper-section" id="how-it-works">
+          <div class="paper-copy"><span class="eyebrow">THE FINISHING TOUCH</span><h2>Earned it online.<br /><em>Display it for real.</em></h2><p>When you have met an award level, we make the official ARRL application steps wonderfully straightforward.</p><div class="paper-points"><span>1. Review your credits</span><span>2. Download an application checklist</span><span>3. Request your certificate from ARRL</span></div><button class="button primary" id="paper-button" type="button">Prepare paper award <span class="arrow">→</span></button></div>
+          <div class="certificate"><div class="certificate-inner"><span>American Radio Relay League</span><h3>DXCC<br />Award</h3><p>Presented to<br /><strong>JR1BTR</strong></p><small>For confirmed two-way communication<br />with 100 or more DXCC entities.</small><i>ARRL</i></div></div>
+        </section>
+      </main>
+      <footer><a class="brand" href="#top"><span class="brand-mark">B</span><span>Better<span>LoTW</span></span></a><span>Built for the joy of the chase.</span><span>Not affiliated with ARRL or QRZ.</span></footer>
+    </div>
+    <dialog id="paper-dialog"><button class="dialog-close" aria-label="Close" type="button">×</button><span class="eyebrow">PAPER AWARD PREP</span><h2>Your checklist is ready.</h2><p>BetterLoTW has verified the credits visible in this dashboard. Select an award, then use the official ARRL Award Application portal to complete the request and payment.</p><label>Choose an award<select id="paper-award"></select></label><a class="button primary wide" href="https://www.arrl.org/awards" target="_blank" rel="noreferrer">Open official ARRL award page <span class="arrow">→</span></a><small>ARRL handles applications, fees, review, and certificate fulfillment.</small></dialog>
+    <script src="config.js"></script><script src="app.js"></script>
+  </body>
+</html>

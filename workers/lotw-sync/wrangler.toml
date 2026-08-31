@@ -1,0 +1,8 @@
+name = "betterlotw-lotw-sync"
+main = "src/index.js"
+compatibility_date = "2026-08-31"
+
+# Do not add credentials here. The Worker uses a user's credentials only for
+# the lifetime of a single HTTPS request and never stores them.
+# Set ALLOWED_ORIGIN when deploying, for example:
+# npx wrangler secret put ALLOWED_ORIGIN
