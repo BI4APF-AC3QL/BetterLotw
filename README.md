@@ -27,7 +27,7 @@ window.BETTERLOTW_CONFIG = { syncEndpoint: "https://你的-worker.workers.dev/sy
 6. 在 Cloudflare Worker 的 **Settings → Variables and Secrets** 添加 Secret：
    - `ALLOWED_ORIGIN`：你的 GitHub Pages 网站根域名，例如 `https://你的用户名.github.io`
 
-重新运行 `Deploy BetterLoTW to GitHub Pages` 工作流后，网页便会使用该 Worker。Worker 会下载确认 QSO，页面会计算 DXCC、WAS、VUCC、Triple Play、WAZ 和 WPX 的基础进度。
+重新运行 `Deploy BetterLoTW to GitHub Pages` 工作流后，网页便会使用该 Worker。Worker 会请求 LoTW 的完整 QSO 历史；页面会分别显示同步 QSO 总数与已确认 QSO 数，奖项仅以确认记录计算。
 
 ## Publish with GitHub Pages
 

@@ -15,14 +15,15 @@ function renderAwards(items = awards) {
   $("#paper-award").innerHTML = awards.map(a => `<option value="${a.id}">${a.name} — ${a.value}/${a.goal} credits</option>`).join("");
 }
 function renderFeed() { $("#feed").innerHTML = confirmations.map(c => `<div class="feed-item"><span class="feed-band">${c[2]}</span><div><strong>${c[0]}</strong><span>${c[1]}</span></div><time>${c[3]}</time></div>`).join(""); }
-function setDemo() { $("#callsign").value = "JR1BTR"; $("#confirmed-count").textContent = "1,284"; $("#connection-help").hidden = true; $("#sync-card").scrollIntoView({ behavior: "smooth", block: "center" }); }
+function setDemo() { $("#callsign").value = "JR1BTR"; $("#qso-count").textContent = "1,284"; $("#confirmed-count").textContent = "1,042"; $("#connection-help").hidden = true; $("#sync-card").scrollIntoView({ behavior: "smooth", block: "center" }); }
 function parseAdif(adif) {
   return adif.split(/<eor>/i).filter(Boolean).map(record => {
     const result = {}; const tag = /<([^:>]+):(\d+)(?::[^>]+)?>/gi; let match;
     while ((match = tag.exec(record))) { const name = match[1].trim().toUpperCase(); const length = Number(match[2]); const start = tag.lastIndex; result[name] = record.slice(start, start + length).trim(); tag.lastIndex = start + length; }
     return result;
-  }).filter(qso => qso.CALL && (qso.QSL_RCVD === "Y" || qso.QSLRDATE));
+  }).filter(qso => qso.CALL);
 }
+function isConfirmed(qso) { return qso.QSL_RCVD === "Y" || Boolean(qso.QSLRDATE); }
 function normalizedMode(qso) { const mode = (qso.MODE || "").toUpperCase(); return ["FT8", "FT4", "JT65", "JT9", "PSK", "RTTY", "MFSK", "MSK144"].some(v => mode.startsWith(v)) ? "DIGITAL" : mode === "SSB" || mode === "AM" || mode === "FM" ? "PHONE" : mode; }
 function calculateAwardProgress(qsos) {
   const unique = (values) => new Set(values.filter(Boolean));
@@ -43,9 +44,12 @@ function calculateAwardProgress(qsos) {
   ];
 }
 function applyLiveLog(adif) {
-  const qsos = parseAdif(adif); if (!qsos.length) throw new Error("没有找到已确认的 QSO。请确认 LoTW 账号有已确认记录。");
-  awards = calculateAwardProgress(qsos); renderAwards(); $("#confirmed-count").textContent = qsos.length.toLocaleString();
-  const fresh = qsos.sort((a, b) => `${b.QSO_DATE || ""}${b.TIME_ON || ""}`.localeCompare(`${a.QSO_DATE || ""}${a.TIME_ON || ""}`)).slice(0, 5);
+  const qsos = parseAdif(adif); if (!qsos.length) throw new Error("LoTW 没有返回任何 QSO。请检查 LoTW 登录信息。");
+  const confirmed = qsos.filter(isConfirmed);
+  awards = calculateAwardProgress(confirmed); renderAwards();
+  $("#qso-count").textContent = qsos.length.toLocaleString();
+  $("#confirmed-count").textContent = confirmed.length.toLocaleString();
+  const fresh = (confirmed.length ? confirmed : qsos).sort((a, b) => `${b.QSO_DATE || ""}${b.TIME_ON || ""}`.localeCompare(`${a.QSO_DATE || ""}${a.TIME_ON || ""}`)).slice(0, 5);
   $("#feed").innerHTML = fresh.map(q => `<div class="feed-item"><span class="feed-band">${normalizedMode(q).slice(0,3)}</span><div><strong>${q.CALL}</strong><span>${q.COUNTRY || "Confirmed contact"} · ${q.BAND || q.FREQ || ""} ${q.MODE || ""}</span></div><time>${q.QSO_DATE ? `${q.QSO_DATE.slice(4,6)}/${q.QSO_DATE.slice(6,8)}` : "New"}</time></div>`).join("");
 }
 $("#connect-form").addEventListener("submit", async (event) => {
