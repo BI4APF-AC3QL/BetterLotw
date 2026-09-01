@@ -1,9 +1,20 @@
 const LOTW_REPORT_URL = "https://lotw.arrl.org/lotwuser/lotwreport.adi";
 const MAX_ADIF_BYTES = 12 * 1024 * 1024;
+const BUILT_IN_ALLOWED_ORIGINS = new Set([
+  "https://bi4apf-ac3ql.github.io"
+]);
+
+function allowedOrigins(env) {
+  const configured = String(env.ALLOWED_ORIGIN || "")
+    .split(",")
+    .map(origin => origin.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+  return new Set([...BUILT_IN_ALLOWED_ORIGINS, ...configured]);
+}
 
 function corsHeaders(request, env) {
   const origin = request.headers.get("Origin") || "";
-  if (!env.ALLOWED_ORIGIN || origin !== env.ALLOWED_ORIGIN) return null;
+  if (!allowedOrigins(env).has(origin)) return null;
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "POST, OPTIONS",

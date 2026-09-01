@@ -27,6 +27,8 @@ window.BETTERLOTW_CONFIG = { syncEndpoint: "https://你的-worker.workers.dev/sy
 6. 在 Cloudflare Worker 的 **Settings → Variables and Secrets** 添加 Secret：
    - `ALLOWED_ORIGIN`：你的 GitHub Pages 网站根域名，例如 `https://你的用户名.github.io`
 
+仓库当前使用的 `https://bi4apf-ac3ql.github.io` 已内置在 Worker 的精确白名单中，因此即使 Cloudflare 变量尚未设置，当前 GitHub Pages 网站也可以同步。如果以后使用自定义域名，可在 `ALLOWED_ORIGIN` 中填写该域名；多个域名使用英文逗号分隔，均不要包含结尾 `/`。
+
 重新运行 `Deploy BetterLoTW to GitHub Pages` 工作流后，网页便会使用该 Worker。Worker 会请求 LoTW 的完整 QSO 历史；页面会分别显示同步 QSO 总数与已确认 QSO 数，奖项仅以确认记录计算。
 
 ## Publish with GitHub Pages
