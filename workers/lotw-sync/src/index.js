@@ -57,9 +57,14 @@ export default {
         headers: { "User-Agent": "BetterLoTW/1.0", "Accept": "application/x-arrl-adif, text/plain;q=0.9" },
         cf: { cacheTtl: 0, cacheEverything: false }
       });
-      const [qsoResponse, qslResponse] = await Promise.all([fetchReport(qsoQuery), fetchReport(qslQuery)]);
-      if (!qsoResponse.ok || !qslResponse.ok) return response(request, env, { error: "LoTW 暂时无法响应，请稍后重试。" }, 502);
-      const [adif, qslAdif] = await Promise.all([qsoResponse.text(), qslResponse.text()]);
+      // LoTW may reject concurrent report generation for the same account, so
+      // keep these upstream requests deliberately sequential.
+      const qsoResponse = await fetchReport(qsoQuery);
+      if (!qsoResponse.ok) return response(request, env, { error: "LoTW 暂时无法响应，请稍后重试。" }, 502);
+      const adif = await qsoResponse.text();
+      const qslResponse = await fetchReport(qslQuery);
+      if (!qslResponse.ok) return response(request, env, { error: "LoTW 暂时无法响应，请稍后重试。" }, 502);
+      const qslAdif = await qslResponse.text();
       const encoder = new TextEncoder();
       if (encoder.encode(adif).byteLength > MAX_ADIF_BYTES || encoder.encode(qslAdif).byteLength > MAX_ADIF_BYTES) return response(request, env, { error: "完整日志超过同步服务的安全大小限制。请联系我们启用分批同步。" }, 413);
       if (!/<eoh>|<eor>/i.test(adif) || !/<eoh>|<eor>/i.test(qslAdif)) return response(request, env, { error: "LoTW 没有返回 ADIF 数据。请检查用户名和密码。" }, 401);
