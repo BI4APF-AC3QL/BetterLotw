@@ -39,13 +39,19 @@ export default {
     try {
       const { username, password } = await request.json();
       if (!/^[A-Z0-9/]{3,20}$/i.test(username || "") || typeof password !== "string" || password.length < 1 || password.length > 256) return response(request, env, { error: "请输入有效的 LoTW 用户名和密码。" }, 400);
-      // Use LoTW's form POST rather than placing a user's password in a URL.
-      // The broad QSO date window asks LoTW for the station's complete history.
+      // LoTW's report endpoint requires a GET request. qso_qsl=no selects QSO
+      // records (including QSL_RCVD/QSLRDATE when confirmed), while the old
+      // default query returned only records after LoTW's saved query cursor.
       const query = new URLSearchParams({
-        login: username.trim(), password, qso_query: "1", qso_qsldetail: "yes",
-        qso_qsorxsince: "1900-01-01", qso_qsorxuntil: "2099-12-31"
+        login: username.trim(), password, qso_query: "1", qso_qsl: "no",
+        qso_qsorxsince: "1900-01-01"
       });
-      const upstream = await fetch(LOTW_REPORT_URL, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "BetterLoTW/1.0" }, body: query, cf: { cacheTtl: 0, cacheEverything: false } });
+      const upstream = await fetch(`${LOTW_REPORT_URL}?${query}`, {
+        method: "GET",
+        headers: { "User-Agent": "BetterLoTW/1.0", "Accept": "application/x-arrl-adif, text/plain;q=0.9" },
+        cache: "no-store",
+        cf: { cacheTtl: 0, cacheEverything: false }
+      });
       if (!upstream.ok) return response(request, env, { error: "LoTW 暂时无法响应，请稍后重试。" }, 502);
       const adif = await upstream.text();
       if (new TextEncoder().encode(adif).byteLength > MAX_ADIF_BYTES) return response(request, env, { error: "完整日志超过同步服务的安全大小限制。请联系我们启用分批同步。" }, 413);
