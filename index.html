@@ -10,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="analysis.css" />
   </head>
   <body>
     <div class="shell">
@@ -52,6 +53,41 @@
 
         <section class="section-heading" id="awards"><div><span class="eyebrow">AWARD TRACKER</span><h2>Your awards, at a glance.</h2></div><button class="button secondary" id="sort-button" type="button">Sort: closest to finish <span class="chevron"></span></button></section>
         <section class="award-grid" id="award-grid" aria-live="polite"></section>
+
+        <section class="award-analysis" id="award-analysis" aria-live="polite" hidden>
+          <div class="analysis-heading">
+            <div><span class="eyebrow">AWARD ANALYSIS</span><h2 id="analysis-title">DXCC analysis</h2><p id="analysis-subtitle">See exactly which contacts count and what to work next.</p></div>
+            <label class="mode-filter" for="analysis-mode">Type<select id="analysis-mode"><option value="MIXED">Mixed</option><option value="CW">CW</option><option value="DIGITAL">Digital</option><option value="PHONE">Phone</option></select></label>
+          </div>
+          <div class="analysis-summary">
+            <article class="analysis-panel analysis-map-panel">
+              <div class="analysis-panel-title"><span class="mini-label">CONTACT COVERAGE</span><strong>Confirmed and unconfirmed</strong></div>
+              <div class="analysis-map" id="analysis-map" role="img" aria-label="Map of contacts with usable grid coordinates">
+                <svg viewBox="0 0 960 430" preserveAspectRatio="xMidYMid meet">
+                  <path class="analysis-land" d="M72 109l44-36 66 5 47 40-20 31-71-2-42 20-43-19zM172 171l47 6 26 34-17 43 25 51-19 57-28-11-10-52-33-48 9-29zM298 89l35-27 69 8 19 22-21 35-55 7-35-18zM337 146l53 3 25 27-10 32-38 1-35-31zM423 84l65-27 98 7 64 31 9 31-76-4-44 16-61-9-47 3zM468 146l65-6 44 26 13 33-37 22-64-10-29-38zM516 231l32 4 22 42-15 70-30 38-20-56 11-51zM627 151l70-17 71 19 42 48-22 38-71-10-41 16-37-44zM710 239l56 1 27 39-15 68-43 16-28-59zM818 295l49-6 30 28-19 30-48-10z" />
+                  <g id="analysis-map-pins"></g>
+                </svg>
+                <div class="map-empty" id="analysis-map-empty" hidden>这些记录没有可用于定位的网格坐标；下方矩阵仍会完整统计。</div>
+              </div>
+              <div class="map-legend"><span><i class="legend confirmed"></i>Confirmed</span><span><i class="legend unconfirmed"></i>Unconfirmed</span></div>
+            </article>
+            <article class="analysis-panel source-panel">
+              <span class="mini-label">USING CREDITS FROM</span><div class="source-callsign" id="analysis-callsign">Demo station</div><p>LoTW full-history sync</p><dl><div><dt>Total QSOs in view</dt><dd id="analysis-qso-total">0</dd></div><div><dt>LoTW confirmed</dt><dd id="analysis-confirmed-total">0</dd></div><div><dt>Last calculated</dt><dd id="analysis-calculated">Demo data</dd></div></dl>
+            </article>
+            <article class="analysis-panel progress-panel">
+              <div class="progress-ring" id="analysis-ring"><div><strong id="analysis-percent">0%</strong><span>complete</span></div></div>
+              <p><strong id="analysis-value">0</strong> out of <strong id="analysis-goal">100</strong> credits</p>
+              <button class="button primary wide" id="analysis-paper-button" type="button">Prepare paper award <span class="arrow">→</span></button>
+            </article>
+          </div>
+          <div class="eligibility-note" id="analysis-eligibility"></div>
+          <div class="analysis-stat-grid" id="analysis-stats"></div>
+          <section class="matrix-section">
+            <div class="matrix-heading"><div><span class="mini-label">AWARD DETAIL</span><h3 id="matrix-title">Entity and band status</h3></div><div class="status-key"><span class="status confirmed">Confirmed</span><span class="status unconfirmed">Unconfirmed</span><span class="status none">None</span></div></div>
+            <div class="matrix-scroll"><table class="award-matrix"><thead id="matrix-head"></thead><tbody id="matrix-body"></tbody></table></div>
+            <p class="matrix-note" id="matrix-note"></p>
+          </section>
+        </section>
 
         <section class="activity-layout">
           <article class="map-card">
