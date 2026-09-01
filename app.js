@@ -48,7 +48,7 @@ function renderFeed() {
 
 function setDemo() {
   $("#callsign").value = "DEMO";
-  applyQsoData(demoQsos, "Demo preview");
+  applyQsoData(demoQsos, demoQsos.filter(isConfirmed), "Demo preview");
   $("#connection-help").hidden = true;
   $("#sync-card").scrollIntoView({ behavior: "smooth", block: "center" });
 }
@@ -221,9 +221,23 @@ function renderAwardAnalysis(awardId = selectedAwardId, scroll = false) {
   if (scroll) section.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function applyQsoData(qsos, calculatedLabel) {
-  currentQsos = [...qsos];
-  currentConfirmed = currentQsos.filter(isConfirmed);
+function qsoKey(qso) {
+  if (qso.APP_LOTW_QSO_TIMESTAMP) return `lotw:${qso.APP_LOTW_QSO_TIMESTAMP}`;
+  const time = (qso.TIME_ON || "").replace(/[^0-9]/g, "").slice(0, 4);
+  return [qso.CALL, qso.QSO_DATE, time, qso.BAND || qso.FREQ, qso.MODE].map(value => String(value || "").toUpperCase()).join("|");
+}
+
+function mergeQsoReports(qsos, confirmedQsos) {
+  const confirmedByKey = new Map(confirmedQsos.map(qso => [qsoKey(qso), qso]));
+  return qsos.map(qso => {
+    const confirmation = confirmedByKey.get(qsoKey(qso));
+    return confirmation ? { ...qso, ...confirmation, QSL_RCVD: "Y" } : qso;
+  });
+}
+
+function applyQsoData(qsos, confirmedQsos, calculatedLabel) {
+  currentConfirmed = confirmedQsos.map(qso => ({ ...qso, QSL_RCVD: "Y" }));
+  currentQsos = mergeQsoReports(qsos, currentConfirmed);
   awards = calculateAwardProgress(currentConfirmed);
   lastCalculated = calculatedLabel;
   renderAwards();
@@ -234,10 +248,11 @@ function applyQsoData(qsos, calculatedLabel) {
   if (!$("#award-analysis").hidden) renderAwardAnalysis(selectedAwardId);
 }
 
-function applyLiveLog(adif) {
+function applyLiveLog(adif, qslAdif = "") {
   const qsos = parseAdif(adif);
   if (!qsos.length) throw new Error("LoTW 没有返回任何 QSO。请检查 LoTW 登录信息。");
-  applyQsoData(qsos, new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date()));
+  const confirmedQsos = qslAdif ? parseAdif(qslAdif) : qsos.filter(isConfirmed);
+  applyQsoData(qsos, confirmedQsos, new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date()));
 }
 
 $("#connect-form").addEventListener("submit", async event => {
@@ -257,7 +272,7 @@ $("#connect-form").addEventListener("submit", async event => {
     const response = await fetch(config.syncEndpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: $("#callsign").value.trim(), password: $("#lotw-key").value }), cache: "no-store" });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "同步服务无法验证 LoTW 登录信息。");
-    applyLiveLog(data.adif || "");
+    applyLiveLog(data.adif || "", data.qslAdif || "");
     $("#lotw-key").value = "";
     button.innerHTML = "Full history synced ✓";
     setTimeout(() => button.innerHTML = "Sync confirmations <span class='arrow'>→</span>", 2500);

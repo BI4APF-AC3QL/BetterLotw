@@ -39,23 +39,31 @@ export default {
     try {
       const { username, password } = await request.json();
       if (!/^[A-Z0-9/]{3,20}$/i.test(username || "") || typeof password !== "string" || password.length < 1 || password.length > 256) return response(request, env, { error: "请输入有效的 LoTW 用户名和密码。" }, 400);
-      // LoTW's report endpoint requires a GET request. qso_qsl=no selects QSO
-      // records (including QSL_RCVD/QSLRDATE when confirmed), while the old
-      // default query returned only records after LoTW's saved query cursor.
-      const query = new URLSearchParams({
+      // LoTW separates the complete uploaded-QSO list from confirmed-QSL
+      // details. Fetch both from the beginning of account history; the client
+      // joins them by APP_LoTW_QSO_TIMESTAMP without double-counting QSOs.
+      const common = {
         login: username.trim(), password, qso_query: "1", qso_qsl: "no",
         qso_qsorxsince: "1900-01-01"
+      };
+      const qsoQuery = new URLSearchParams(common);
+      const qslQuery = new URLSearchParams({
+        ...common, qso_qsl: "yes", qso_qslsince: "1900-01-01",
+        qso_qsldetail: "yes"
       });
-      const upstream = await fetch(`${LOTW_REPORT_URL}?${query}`, {
+      qslQuery.delete("qso_qsorxsince");
+      const fetchReport = query => fetch(`${LOTW_REPORT_URL}?${query}`, {
         method: "GET",
         headers: { "User-Agent": "BetterLoTW/1.0", "Accept": "application/x-arrl-adif, text/plain;q=0.9" },
         cf: { cacheTtl: 0, cacheEverything: false }
       });
-      if (!upstream.ok) return response(request, env, { error: "LoTW 暂时无法响应，请稍后重试。" }, 502);
-      const adif = await upstream.text();
-      if (new TextEncoder().encode(adif).byteLength > MAX_ADIF_BYTES) return response(request, env, { error: "完整日志超过同步服务的安全大小限制。请联系我们启用分批同步。" }, 413);
-      if (!/<eoh>|<eor>/i.test(adif)) return response(request, env, { error: "LoTW 没有返回 ADIF 数据。请检查用户名和密码。" }, 401);
-      return response(request, env, { adif });
+      const [qsoResponse, qslResponse] = await Promise.all([fetchReport(qsoQuery), fetchReport(qslQuery)]);
+      if (!qsoResponse.ok || !qslResponse.ok) return response(request, env, { error: "LoTW 暂时无法响应，请稍后重试。" }, 502);
+      const [adif, qslAdif] = await Promise.all([qsoResponse.text(), qslResponse.text()]);
+      const encoder = new TextEncoder();
+      if (encoder.encode(adif).byteLength > MAX_ADIF_BYTES || encoder.encode(qslAdif).byteLength > MAX_ADIF_BYTES) return response(request, env, { error: "完整日志超过同步服务的安全大小限制。请联系我们启用分批同步。" }, 413);
+      if (!/<eoh>|<eor>/i.test(adif) || !/<eoh>|<eor>/i.test(qslAdif)) return response(request, env, { error: "LoTW 没有返回 ADIF 数据。请检查用户名和密码。" }, 401);
+      return response(request, env, { adif, qslAdif });
     } catch {
       return response(request, env, { error: "请求格式无效或 LoTW 同步失败。" }, 400);
     }

@@ -29,7 +29,7 @@ window.BETTERLOTW_CONFIG = { syncEndpoint: "https://你的-worker.workers.dev/sy
 
 仓库当前使用的 `https://bi4apf-ac3ql.github.io` 已内置在 Worker 的精确白名单中，因此即使 Cloudflare 变量尚未设置，当前 GitHub Pages 网站也可以同步。如果以后使用自定义域名，可在 `ALLOWED_ORIGIN` 中填写该域名；多个域名使用英文逗号分隔，均不要包含结尾 `/`。
 
-重新运行 `Deploy BetterLoTW to GitHub Pages` 工作流后，网页便会使用该 Worker。Worker 使用 LoTW 要求的 GET 报告查询，并明确设置 `qso_qsl=no` 与从 1900 年开始的接收日期，以取得全部已上传 QSO；返回记录中的 `QSL_RCVD`/`QSLRDATE` 用于识别确认。页面会分别显示同步 QSO 总数与已确认 QSO 数，奖项仅以确认记录计算。
+重新运行 `Deploy BetterLoTW to GitHub Pages` 工作流后，网页便会使用该 Worker。Worker 使用 LoTW 要求的 GET 报告查询：一份以 `qso_qsl=no` 取得全部已上传 QSO，另一份以 `qso_qsl=yes` 取得完整确认与奖项字段。浏览器按 LoTW 的 QSO 时间戳合并两份报告，因此总 QSO 不会重复；页面分别显示同步 QSO 总数与已确认 QSO 数，奖项仅以确认详情记录计算。
 
 ## Publish with GitHub Pages
 
