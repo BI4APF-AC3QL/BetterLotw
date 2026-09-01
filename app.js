@@ -263,7 +263,9 @@ $("#connect-form").addEventListener("submit", async event => {
     setTimeout(() => button.innerHTML = "Sync confirmations <span class='arrow'>→</span>", 2500);
   } catch (error) {
     help.hidden = false;
-    help.textContent = error.message;
+    help.textContent = error instanceof TypeError && /fetch/i.test(error.message)
+      ? "无法连接 LoTW 同步服务。请检查网络后重试；如果持续出现，请确认 Cloudflare Worker 已成功部署。"
+      : error.message;
     button.innerHTML = "Try sync again";
   } finally {
     button.disabled = false;
