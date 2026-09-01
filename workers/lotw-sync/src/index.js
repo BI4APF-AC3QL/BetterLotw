@@ -49,7 +49,6 @@ export default {
       const upstream = await fetch(`${LOTW_REPORT_URL}?${query}`, {
         method: "GET",
         headers: { "User-Agent": "BetterLoTW/1.0", "Accept": "application/x-arrl-adif, text/plain;q=0.9" },
-        cache: "no-store",
         cf: { cacheTtl: 0, cacheEverything: false }
       });
       if (!upstream.ok) return response(request, env, { error: "LoTW 暂时无法响应，请稍后重试。" }, 502);
