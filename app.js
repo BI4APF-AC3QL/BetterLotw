@@ -242,10 +242,29 @@ function decodeWorldFeatures(topology) {
     : geometry.type === "MultiPolygon"
       ? geometry.arcs.map(polygon => polygon.map(stitch))
       : [];
+  const projectRing = ring => {
+    let offset = 0;
+    let previousLon;
+    return ring.map(([rawLon,lat],index) => {
+      let lon = rawLon + offset;
+      if (index) {
+        const difference = lon - previousLon;
+        if (difference > 180) {
+          offset -= 360;
+          lon -= 360;
+        } else if (difference < -180) {
+          offset += 360;
+          lon += 360;
+        }
+      }
+      previousLon = lon;
+      return [((lon + 180) / 360) * 960,((90 - lat) / 180) * 430];
+    });
+  };
   return topology.objects.countries.geometries.map(geometry => {
     const polygons = toPolygons(geometry);
     const path = polygons.map(polygon => polygon.map(ring => {
-      const points = ring.map(([lon,lat]) => [((lon + 180) / 360) * 960,((90 - lat) / 180) * 430]);
+      const points = projectRing(ring);
       return points.length ? `M${points.map(point => `${point[0].toFixed(2)},${point[1].toFixed(2)}`).join("L")}Z` : "";
     }).join("")).join("");
     return {id:String(geometry.id || ""),name:geometry.properties?.name || "未命名国家",polygons,path};
