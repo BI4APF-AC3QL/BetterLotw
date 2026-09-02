@@ -9,6 +9,7 @@ const AWARD_LINKS = {
 const $ = selector => document.querySelector(selector);
 const h = value => String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[char]);
 const rawDxcc = Array.isArray(window.BETTERLOTW_DXCC) ? window.BETTERLOTW_DXCC : [];
+const worldTopology = window.BETTERLOTW_WORLD || null;
 const entityById = new Map();
 const exactCallMap = new Map();
 const prefixEntries = [];
@@ -27,6 +28,7 @@ rawDxcc.forEach(([id,name,cqz,lat,lon,continent,aliases]) => {
 const DXCC_CATALOG = [...entityById.values()].sort((a,b) => a.name.localeCompare(b.name, "zh-CN"));
 DXCC_CATALOG.forEach(entity => [...new Set(entity.prefixes)].forEach(prefix => prefixEntries.push([prefix,entity])));
 prefixEntries.sort((a,b) => b[0].length - a[0].length);
+const WORLD_FEATURES = decodeWorldFeatures(worldTopology);
 
 let awards = createAwards();
 let currentQsos = [];
@@ -219,6 +221,61 @@ function renderAwards() {
   $("#paper-award").innerHTML = awards.map(award => `<option value="${award.id}">${h(award.name)} — ${award.value}/${award.goal}</option>`).join("");
 }
 
+function decodeWorldFeatures(topology) {
+  if (!topology?.arcs || !topology?.objects?.countries?.geometries || !topology.transform) return [];
+  const [scaleX,scaleY] = topology.transform.scale;
+  const [translateX,translateY] = topology.transform.translate;
+  const decodeArc = index => {
+    const source = topology.arcs[index < 0 ? ~index : index];
+    let x = 0;
+    let y = 0;
+    const points = source.map(([deltaX,deltaY]) => {
+      x += deltaX;
+      y += deltaY;
+      return [x * scaleX + translateX,y * scaleY + translateY];
+    });
+    return index < 0 ? points.reverse() : points;
+  };
+  const stitch = arcIndexes => arcIndexes.flatMap((index,position) => decodeArc(index).slice(position ? 1 : 0));
+  const toPolygons = geometry => geometry.type === "Polygon"
+    ? [geometry.arcs.map(stitch)]
+    : geometry.type === "MultiPolygon"
+      ? geometry.arcs.map(polygon => polygon.map(stitch))
+      : [];
+  return topology.objects.countries.geometries.map(geometry => {
+    const polygons = toPolygons(geometry);
+    const path = polygons.map(polygon => polygon.map(ring => {
+      const points = ring.map(([lon,lat]) => [((lon + 180) / 360) * 960,((90 - lat) / 180) * 430]);
+      return points.length ? `M${points.map(point => `${point[0].toFixed(2)},${point[1].toFixed(2)}`).join("L")}Z` : "";
+    }).join("")).join("");
+    return {id:String(geometry.id || ""),name:geometry.properties?.name || "未命名国家",polygons,path};
+  }).filter(feature => feature.path);
+}
+
+function pointInRing(lon,lat,ring) {
+  let inside = false;
+  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index++) {
+    const [x1,y1] = ring[index];
+    const [x2,y2] = ring[previous];
+    const crosses = (y1 > lat) !== (y2 > lat) && lon < ((x2 - x1) * (lat - y1)) / (y2 - y1) + x1;
+    if (crosses) inside = !inside;
+  }
+  return inside;
+}
+
+function featureContainsEntity(feature,entity) {
+  if (!entity || !Number.isFinite(entity.lon) || !Number.isFinite(entity.lat)) return false;
+  return feature.polygons.some(polygon => pointInRing(entity.lon,entity.lat,polygon[0]) && !polygon.slice(1).some(ring => pointInRing(entity.lon,entity.lat,ring)));
+}
+
+function mapCountryCoverage(feature) {
+  const matches = currentMapRows.filter(row => featureContainsEntity(feature,row.entity));
+  if (!matches.length) return {status:"untracked",count:0};
+  const rank = {untracked:0,none:1,unconfirmed:2,confirmed:3};
+  const strongest = matches.reduce((result,row) => rank[row.status] > rank[result.status] ? row : result,matches[0]);
+  return {status:strongest.status,count:matches.reduce((total,row) => total + row.qsos.length,0)};
+}
+
 function mapPoint(entity) {
   if (!entity || !Number.isFinite(entity.lat) || !Number.isFinite(entity.lon)) return null;
   return {x:((entity.lon + 180) / 360) * 960,y:((90 - entity.lat) / 180) * 430};
@@ -240,8 +297,14 @@ function buildMapRows(qsos,awardId,rows) {
 function renderMap() {
   const visible = selectedStatus === "all" ? currentMapRows : currentMapRows.filter(row => row.status === selectedStatus);
   const located = visible.map(row => ({row,point:mapPoint(row.entity)})).filter(item => item.point);
+  $("#analysis-map-land").innerHTML = WORLD_FEATURES.map(feature => {
+    const coverage = mapCountryCoverage(feature);
+    const dimmed = selectedStatus !== "all" && coverage.status !== selectedStatus ? " filter-dim" : "";
+    const statusLabel = STATUS_LABELS[coverage.status] || "未匹配 DXCC 实体";
+    return `<path class="map-country ${coverage.status}${dimmed}" d="${feature.path}" data-label="${h(feature.name)}" data-status="${coverage.status}" data-count="${coverage.count}" tabindex="0" role="button" aria-label="${h(feature.name)}，${statusLabel}，${coverage.count} 个 QSO"></path>`;
+  }).join("");
   $("#analysis-map-pins").innerHTML = located.map(({row,point}) => `
-    <circle class="entity-pin ${row.status}" cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="${row.status === "none" ? 3.4 : 5.2}"
+    <circle class="entity-pin ${row.status}" cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="${row.status === "none" ? 2.8 : 4.8}"
       tabindex="0" role="button" data-key="${h(row.key)}" data-label="${h(row.label)}" data-status="${row.status}" data-count="${row.qsos.length}"
       aria-label="${h(row.label)}，${STATUS_LABELS[row.status]}，${row.qsos.length} 个 QSO"></circle>`).join("");
   const counts = {confirmed:0,unconfirmed:0,none:0};
@@ -249,14 +312,15 @@ function renderMap() {
   $("#legend-confirmed").textContent = counts.confirmed;
   $("#legend-unconfirmed").textContent = counts.unconfirmed;
   $("#legend-none").textContent = counts.none;
-  $("#analysis-map-empty").hidden = located.length > 0;
-  $("#entity-map").setAttribute("aria-label",`实体位置地图：已确认 ${counts.confirmed}，待确认 ${counts.unconfirmed}，无 ${counts.none}`);
+  $("#analysis-map-empty").hidden = WORLD_FEATURES.length > 0 || located.length > 0;
+  $("#entity-map").setAttribute("aria-label",`真实世界国界地图：已确认 ${counts.confirmed}，待确认 ${counts.unconfirmed}，无 ${counts.none}`);
 }
 
 function showMapTooltip(pin,event) {
   const tooltip = $("#map-tooltip");
   const rect = $("#analysis-map").getBoundingClientRect();
-  tooltip.innerHTML = `<strong>${h(pin.dataset.label)}</strong><span>${STATUS_LABELS[pin.dataset.status] || ""} · ${Number(pin.dataset.count).toLocaleString()} 个 QSO</span>`;
+  const status = STATUS_LABELS[pin.dataset.status] || (pin.dataset.status === "untracked" ? "未匹配" : "");
+  tooltip.innerHTML = `<strong>${h(pin.dataset.label)}</strong><span>${status} · ${Number(pin.dataset.count).toLocaleString()} 个 QSO</span>`;
   const x = event?.clientX ? event.clientX - rect.left : rect.width / 2;
   const y = event?.clientY ? event.clientY - rect.top : rect.height / 2;
   tooltip.style.left = `${Math.max(10,Math.min(rect.width - 170,x + 12))}px`;
@@ -487,7 +551,7 @@ $("#map-reset").addEventListener("click",() => {
 });
 
 $("#entity-map").addEventListener("pointerdown",event => {
-  if (event.target.closest(".entity-pin")) return;
+  if (event.target.closest(".entity-pin,.map-country")) return;
   mapView.dragging = true;
   mapView.startX = event.clientX;
   mapView.startY = event.clientY;
@@ -496,7 +560,7 @@ $("#entity-map").addEventListener("pointerdown",event => {
   event.currentTarget.setPointerCapture(event.pointerId);
 });
 $("#entity-map").addEventListener("pointermove",event => {
-  const pin = event.target.closest(".entity-pin");
+  const pin = event.target.closest(".entity-pin,.map-country");
   if (pin) showMapTooltip(pin,event);
   if (!mapView.dragging) return;
   const rect = event.currentTarget.getBoundingClientRect();
@@ -517,9 +581,20 @@ $("#analysis-map-pins").addEventListener("focusin",event => {
   if (pin) showMapTooltip(pin);
 });
 $("#analysis-map-pins").addEventListener("focusout",() => { $("#map-tooltip").hidden = true; });
+$("#analysis-map-land").addEventListener("focusin",event => {
+  const country = event.target.closest(".map-country");
+  if (country) showMapTooltip(country);
+});
+$("#analysis-map-land").addEventListener("focusout",() => { $("#map-tooltip").hidden = true; });
+$("#analysis-map-land").addEventListener("click",event => {
+  const country = event.target.closest(".map-country");
+  if (country) showMapTooltip(country,event);
+});
 $("#analysis-map-pins").addEventListener("click",event => {
   const pin = event.target.closest(".entity-pin");
-  if (!pin || selectedAwardId !== "dxcc") return;
+  if (!pin) return;
+  showMapTooltip(pin,event);
+  if (selectedAwardId !== "dxcc") return;
   const row = [...$("#matrix-body").querySelectorAll("tr")].find(item => item.dataset.rowKey === pin.dataset.key);
   if (row) {
     row.classList.add("row-highlight");

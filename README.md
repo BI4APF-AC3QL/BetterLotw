@@ -11,6 +11,7 @@ DXCC 分析使用与 QRZ 奖项页相似的交互逻辑：地图和明细矩阵�
 ### 实体目录与推断边界
 
 - `dxcc-catalog.js` 由公开的 [Country Files](https://www.country-files.com/) `cty.csv` 数据生成，包含当前 DXCC 实体中心位置与呼号前缀。
+- `world-map.js` 使用 [Natural Earth](https://www.naturalearthdata.com/) 1:110m 真实国家边界数据（公有领域）。地图按实体中心位置将“已确认 / 待确认 / 无”覆盖到实际国家轮廓；小型岛屿或没有对应边界的 DXCC 实体保留圆点显示。
 - LoTW 的“全部 QSO”报告通常不含 DXCC、国家、CQ 区和网格字段，因此待确认 QSO 的实体与 CQ 区通过最长呼号前缀进行推断，并在页面明确标记为“前缀推断”。
 - 州和 Maidenhead 网格无法从普通呼号可靠推断，BetterLoTW 不会伪造这些字段；无法推断的记录仍会出现在待确认 QSO 列表中。
 - 地图圆点表示实体中心位置，不是国界着色图，也不用于判断奖项的正式实体有效日期。

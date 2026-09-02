@@ -67,9 +67,9 @@
             </div>
             <div class="analysis-map" id="analysis-map">
               <svg id="entity-map" viewBox="0 0 960 430" preserveAspectRatio="xMidYMid meet" role="img" aria-label="DXCC 实体位置状态地图">
+                <rect class="map-ocean" width="960" height="430" rx="10" />
                 <g id="map-stage">
-                  <rect class="map-ocean" width="960" height="430" rx="10" />
-                  <path class="analysis-land" d="M72 109l44-36 66 5 47 40-20 31-71-2-42 20-43-19zM172 171l47 6 26 34-17 43 25 51-19 57-28-11-10-52-33-48 9-29zM298 89l35-27 69 8 19 22-21 35-55 7-35-18zM337 146l53 3 25 27-10 32-38 1-35-31zM423 84l65-27 98 7 64 31 9 31-76-4-44 16-61-9-47 3zM468 146l65-6 44 26 13 33-37 22-64-10-29-38zM516 231l32 4 22 42-15 70-30 38-20-56 11-51zM627 151l70-17 71 19 42 48-22 38-71-10-41 16-37-44zM710 239l56 1 27 39-15 68-43 16-28-59zM818 295l49-6 30 28-19 30-48-10z" />
+                  <g id="analysis-map-land"></g>
                   <g id="analysis-map-pins"></g>
                 </g>
               </svg>
@@ -78,7 +78,7 @@
             </div>
             <div class="map-footer">
               <div class="map-legend"><span><i class="legend confirmed"></i>已确认 <b id="legend-confirmed">0</b></span><span><i class="legend unconfirmed"></i>待确认 <b id="legend-unconfirmed">0</b></span><span><i class="legend none"></i>无 <b id="legend-none">0</b></span></div>
-              <small>圆点表示实体中心位置，不表示国界；未确认实体可能来自呼号前缀推断。</small>
+              <small>真实国界底图：Natural Earth；小型实体仍以圆点补充显示。</small>
             </div>
           </article>
 
@@ -127,6 +127,7 @@
 
     <script src="config.js"></script>
     <script src="dxcc-catalog.js"></script>
+    <script src="world-map.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
