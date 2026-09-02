@@ -1,121 +1,132 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#081b30" />
-    <title>BetterLoTW — Award progress, made clear</title>
-    <meta name="description" content="See your LoTW-confirmed QSOs, award progress, and next contacts in one clear dashboard." />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+    <meta name="theme-color" content="#0b1f33" />
+    <title>BetterLoTW — 奖项进度工作台</title>
+    <meta name="description" content="同步完整 LoTW QSO，查看奖项进度、待确认联络和实体地图。" />
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="analysis.css" />
   </head>
   <body>
-    <div class="shell">
-      <header class="topbar">
-        <a class="brand" href="#top" aria-label="BetterLoTW home"><span class="brand-mark">B</span><span>Better<span>LoTW</span></span></a>
-        <nav class="nav" aria-label="Main navigation">
-          <a class="active" href="#dashboard">Dashboard</a>
-          <a href="#awards">Awards</a>
-          <a href="#how-it-works">How it works</a>
-        </nav>
-        <button class="button ghost profile-button" type="button"><span class="avatar">J</span><span>JR1BTR</span><i class="chevron"></i></button>
-      </header>
+    <header class="topbar" id="top">
+      <a class="brand" href="#top" aria-label="BetterLoTW 首页"><span class="brand-mark">B</span><span>Better<span>LoTW</span></span></a>
+      <nav class="nav" aria-label="主导航">
+        <a href="#sync">同步</a><a href="#awards">奖项</a><a href="#award-analysis">地图与明细</a><a href="#paper">纸质奖状</a>
+      </nav>
+      <span class="language-chip">简体中文</span>
+    </header>
 
-      <main id="top">
-        <section class="hero" id="dashboard">
-          <div class="eyebrow"><span class="live-dot"></span>YOUR AWARD DESK</div>
-          <div class="hero-grid">
-            <div>
-              <h1>Every confirmation<br /><em>counts for something.</em></h1>
-              <p>Bring your Logbook of The World confirmations into one beautiful, useful view. Know your next country, state, grid, and award.</p>
+    <main class="shell">
+      <section class="workspace" id="sync">
+        <div class="workspace-intro">
+          <span class="eyebrow">LOTW 奖项工作台</span>
+          <h1>同步一次，查看全部奖项进度</h1>
+          <p>下载完整 QSO 历史与已确认详情，分开显示“已确认、待确认、无”。登录信息仅发送到你配置的同步服务，不会保存在本站。</p>
+          <div class="summary-grid" aria-live="polite">
+            <article><span>全部 QSO</span><strong id="qso-count">0</strong></article>
+            <article><span>LoTW 已确认</span><strong id="confirmed-count">0</strong></article>
+            <article><span>待确认</span><strong id="pending-count">0</strong></article>
+            <article><span>DXCC 已确认实体</span><strong id="dxcc-count">0</strong></article>
+          </div>
+        </div>
+        <article class="sync-card" id="sync-card">
+          <div class="section-title"><div><span class="mini-label">LOGBOOK OF THE WORLD</span><h2>同步完整日志</h2></div><span class="secure-mark" aria-hidden="true">✓</span></div>
+          <form id="connect-form">
+            <label for="callsign">LoTW 用户名 / 呼号</label>
+            <input id="callsign" autocomplete="username" placeholder="例如 BI4APF" required />
+            <label for="lotw-key">LoTW 密码或应用密钥</label>
+            <input id="lotw-key" autocomplete="current-password" type="password" placeholder="请输入密码或应用密钥" required />
+            <button class="button primary wide" type="submit">下载并分析全部 QSO</button>
+          </form>
+          <div class="sync-actions"><button id="demo-button" class="button secondary" type="button">载入示例数据</button><span>本站不会保存密码</span></div>
+          <div class="connection-help" id="connection-help" hidden></div>
+        </article>
+      </section>
+
+      <section class="content-section" id="awards">
+        <div class="section-heading"><div><span class="eyebrow">奖项列表</span><h2>LoTW 奖项进度</h2><p>数值只计算 LoTW 已确认且包含奖项所需字段的 QSO。</p></div></div>
+        <div class="award-grid" id="award-grid" aria-live="polite"></div>
+      </section>
+
+      <section class="award-analysis" id="award-analysis" aria-live="polite">
+        <div class="analysis-heading">
+          <div><span class="eyebrow">奖项分析</span><h2 id="analysis-title">DXCC 分析</h2><p id="analysis-subtitle">实体状态、波段矩阵与未确认 QSO</p></div>
+          <div class="analysis-filters">
+            <label for="analysis-mode">模式<select id="analysis-mode"><option value="MIXED">混合</option><option value="CW">CW</option><option value="DIGITAL">数字</option><option value="PHONE">话音</option></select></label>
+            <label for="status-filter">状态<select id="status-filter"><option value="all">全部</option><option value="confirmed">已确认</option><option value="unconfirmed">待确认</option><option value="none">无</option></select></label>
+          </div>
+        </div>
+
+        <div class="analysis-summary">
+          <article class="analysis-panel analysis-map-panel">
+            <div class="analysis-panel-title">
+              <div><span class="mini-label">实体位置图</span><strong id="map-title">DXCC 实体状态</strong></div>
+              <div class="map-controls" aria-label="地图控制"><button type="button" id="map-zoom-in" title="放大" aria-label="放大">＋</button><button type="button" id="map-zoom-out" title="缩小" aria-label="缩小">−</button><button type="button" id="map-reset" title="重置地图">重置</button></div>
             </div>
-            <div class="sync-card" id="sync-card">
-              <div class="sync-card-top"><div><span class="mini-label">LOGBOOK OF THE WORLD</span><h2>Connect your log</h2></div><span class="lock-icon">⌁</span></div>
-              <form id="connect-form">
-                <label>LoTW username<input id="callsign" autocomplete="username" placeholder="e.g. JR1BTR" required /></label>
-                <label>LoTW password or app key<input id="lotw-key" autocomplete="current-password" type="password" placeholder="••••••••••••" required /></label>
-                <button class="button primary wide" type="submit"><span>Sync confirmations</span><span class="arrow">→</span></button>
-              </form>
-              <p class="privacy-note"><span>◈</span> Credentials are sent only to your configured sync service and are never stored.</p>
-              <div class="connection-help" id="connection-help" hidden></div>
-            </div>
-          </div>
-          <div class="quick-stats">
-            <div><span class="stat-value" id="qso-count">1,284</span><span class="stat-label">QSOs synced from LoTW</span></div>
-            <div><span class="stat-value" id="confirmed-count">1,042</span><span class="stat-label">LoTW confirmations</span></div>
-            <div><span class="stat-value">42 yrs</span><span class="stat-label">from first QSO</span></div>
-            <button id="demo-button" class="text-button" type="button">Use demo station <span>→</span></button>
-          </div>
-        </section>
-
-        <section class="section-heading" id="awards"><div><span class="eyebrow">AWARD TRACKER</span><h2>Your awards, at a glance.</h2></div><button class="button secondary" id="sort-button" type="button">Sort: closest to finish <span class="chevron"></span></button></section>
-        <section class="award-grid" id="award-grid" aria-live="polite"></section>
-
-        <section class="award-analysis" id="award-analysis" aria-live="polite" hidden>
-          <div class="analysis-heading">
-            <div><span class="eyebrow">AWARD ANALYSIS</span><h2 id="analysis-title">DXCC analysis</h2><p id="analysis-subtitle">See exactly which contacts count and what to work next.</p></div>
-            <label class="mode-filter" for="analysis-mode">Type<select id="analysis-mode"><option value="MIXED">Mixed</option><option value="CW">CW</option><option value="DIGITAL">Digital</option><option value="PHONE">Phone</option></select></label>
-          </div>
-          <div class="analysis-summary">
-            <article class="analysis-panel analysis-map-panel">
-              <div class="analysis-panel-title"><span class="mini-label">CONTACT COVERAGE</span><strong>Confirmed and unconfirmed</strong></div>
-              <div class="analysis-map" id="analysis-map" role="img" aria-label="Map of contacts with usable grid coordinates">
-                <svg viewBox="0 0 960 430" preserveAspectRatio="xMidYMid meet">
+            <div class="analysis-map" id="analysis-map">
+              <svg id="entity-map" viewBox="0 0 960 430" preserveAspectRatio="xMidYMid meet" role="img" aria-label="DXCC 实体位置状态地图">
+                <g id="map-stage">
+                  <rect class="map-ocean" width="960" height="430" rx="10" />
                   <path class="analysis-land" d="M72 109l44-36 66 5 47 40-20 31-71-2-42 20-43-19zM172 171l47 6 26 34-17 43 25 51-19 57-28-11-10-52-33-48 9-29zM298 89l35-27 69 8 19 22-21 35-55 7-35-18zM337 146l53 3 25 27-10 32-38 1-35-31zM423 84l65-27 98 7 64 31 9 31-76-4-44 16-61-9-47 3zM468 146l65-6 44 26 13 33-37 22-64-10-29-38zM516 231l32 4 22 42-15 70-30 38-20-56 11-51zM627 151l70-17 71 19 42 48-22 38-71-10-41 16-37-44zM710 239l56 1 27 39-15 68-43 16-28-59zM818 295l49-6 30 28-19 30-48-10z" />
                   <g id="analysis-map-pins"></g>
-                </svg>
-                <div class="map-empty" id="analysis-map-empty" hidden>这些记录没有可用于定位的网格坐标；下方矩阵仍会完整统计。</div>
-              </div>
-              <div class="map-legend"><span><i class="legend confirmed"></i>Confirmed</span><span><i class="legend unconfirmed"></i>Unconfirmed</span></div>
-            </article>
-            <article class="analysis-panel source-panel">
-              <span class="mini-label">USING CREDITS FROM</span><div class="source-callsign" id="analysis-callsign">Demo station</div><p>LoTW full-history sync</p><dl><div><dt>Total QSOs in view</dt><dd id="analysis-qso-total">0</dd></div><div><dt>LoTW confirmed</dt><dd id="analysis-confirmed-total">0</dd></div><div><dt>Last calculated</dt><dd id="analysis-calculated">Demo data</dd></div></dl>
-            </article>
-            <article class="analysis-panel progress-panel">
-              <div class="progress-ring" id="analysis-ring"><div><strong id="analysis-percent">0%</strong><span>complete</span></div></div>
-              <p><strong id="analysis-value">0</strong> out of <strong id="analysis-goal">100</strong> credits</p>
-              <button class="button primary wide" id="analysis-paper-button" type="button">Prepare paper award <span class="arrow">→</span></button>
-            </article>
-          </div>
-          <div class="eligibility-note" id="analysis-eligibility"></div>
-          <div class="analysis-stat-grid" id="analysis-stats"></div>
-          <section class="matrix-section">
-            <div class="matrix-heading"><div><span class="mini-label">AWARD DETAIL</span><h3 id="matrix-title">Entity and band status</h3></div><div class="status-key"><span class="status confirmed">Confirmed</span><span class="status unconfirmed">Unconfirmed</span><span class="status none">None</span></div></div>
-            <div class="matrix-scroll"><table class="award-matrix"><thead id="matrix-head"></thead><tbody id="matrix-body"></tbody></table></div>
-            <p class="matrix-note" id="matrix-note"></p>
-          </section>
-        </section>
-
-        <section class="activity-layout">
-          <article class="map-card">
-            <div class="card-heading"><div><span class="mini-label">DXCC PROGRESS</span><h2>Where the world is still quiet</h2></div><button class="icon-button" title="Expand map" type="button">↗</button></div>
-            <div class="map-wrap" role="img" aria-label="Stylized world map showing confirmed and needed DXCC entities">
-              <svg class="world-map" viewBox="0 0 960 430" preserveAspectRatio="xMidYMid meet">
-                <path d="M72 109l44-36 66 5 47 40-20 31-71-2-42 20-43-19zM172 171l47 6 26 34-17 43 25 51-19 57-28-11-10-52-33-48 9-29zM298 89l35-27 69 8 19 22-21 35-55 7-35-18zM337 146l53 3 25 27-10 32-38 1-35-31zM423 84l65-27 98 7 64 31 9 31-76-4-44 16-61-9-47 3zM468 146l65-6 44 26 13 33-37 22-64-10-29-38zM516 231l32 4 22 42-15 70-30 38-20-56 11-51zM627 151l70-17 71 19 42 48-22 38-71-10-41 16-37-44zM710 239l56 1 27 39-15 68-43 16-28-59zM818 295l49-6 30 28-19 30-48-10z" />
-                <g class="map-pins confirmed"><circle cx="149" cy="119" r="7"/><circle cx="189" cy="215" r="7"/><circle cx="337" cy="112" r="7"/><circle cx="380" cy="178" r="7"/><circle cx="474" cy="100" r="7"/><circle cx="528" cy="176" r="7"/><circle cx="589" cy="111" r="7"/><circle cx="681" cy="168" r="7"/><circle cx="746" cy="191" r="7"/><circle cx="761" cy="278" r="7"/><circle cx="846" cy="321" r="7"/></g>
-                <g class="map-pins needed"><circle cx="113" cy="125" r="7"/><circle cx="250" cy="123" r="7"/><circle cx="438" cy="99" r="7"/><circle cx="610" cy="190" r="7"/><circle cx="734" cy="148" r="7"/><circle cx="799" cy="180" r="7"/></g>
+                </g>
               </svg>
-              <div class="map-legend"><span><i class="legend confirmed"></i>Confirmed</span><span><i class="legend needed"></i>Needed</span></div>
+              <div class="map-tooltip" id="map-tooltip" hidden></div>
+              <div class="map-empty" id="analysis-map-empty" hidden>当前视图没有可定位的记录。</div>
             </div>
-            <div class="next-up"><div><span class="mini-label">NEXT UP</span><strong>8 more current entities for DXCC Honor Roll</strong></div><button class="button secondary" type="button">View entities</button></div>
+            <div class="map-footer">
+              <div class="map-legend"><span><i class="legend confirmed"></i>已确认 <b id="legend-confirmed">0</b></span><span><i class="legend unconfirmed"></i>待确认 <b id="legend-unconfirmed">0</b></span><span><i class="legend none"></i>无 <b id="legend-none">0</b></span></div>
+              <small>圆点表示实体中心位置，不表示国界；未确认实体可能来自呼号前缀推断。</small>
+            </div>
           </article>
-          <aside class="feed-card">
-            <div class="card-heading"><div><span class="mini-label">FRESH CONFIRMATIONS</span><h2>Latest in your log</h2></div><button class="text-button" type="button">All activity →</button></div>
-            <div class="feed" id="feed"></div>
-          </aside>
+
+          <article class="analysis-panel progress-panel">
+            <span class="mini-label">当前进度</span>
+            <div class="progress-ring" id="analysis-ring"><div><strong id="analysis-percent">0%</strong><span>完成</span></div></div>
+            <p><strong id="analysis-value">0</strong> / <strong id="analysis-goal">100</strong> 项</p>
+            <dl class="compact-stats"><div><dt>当前呼号</dt><dd id="analysis-callsign">未连接</dd></div><div><dt>视图内 QSO</dt><dd id="analysis-qso-total">0</dd></div><div><dt>已确认 QSO</dt><dd id="analysis-confirmed-total">0</dd></div><div><dt>计算时间</dt><dd id="analysis-calculated">尚未同步</dd></div></dl>
+            <button class="button primary wide" id="analysis-paper-button" type="button">申请纸质奖状</button>
+          </article>
+        </div>
+
+        <div class="eligibility-note working" id="analysis-eligibility"></div>
+        <div class="analysis-stat-grid" id="analysis-stats"></div>
+
+        <section class="matrix-section">
+          <div class="matrix-heading"><div><span class="mini-label">奖项明细</span><h3 id="matrix-title">实体与波段状态</h3></div><label class="matrix-search">搜索<input id="matrix-search" type="search" placeholder="输入实体、州、网格或前缀" /></label></div>
+          <div class="status-key"><span class="status confirmed">已确认</span><span class="status unconfirmed">待确认</span><span class="status none">无</span><span class="status inferred">前缀推断</span></div>
+          <div class="matrix-scroll"><table class="award-matrix"><thead id="matrix-head"></thead><tbody id="matrix-body"></tbody></table></div>
+          <p class="matrix-note" id="matrix-note"></p>
         </section>
 
-        <section class="paper-section" id="how-it-works">
-          <div class="paper-copy"><span class="eyebrow">THE FINISHING TOUCH</span><h2>Earned it online.<br /><em>Display it for real.</em></h2><p>When you have met an award level, we make the official ARRL application steps wonderfully straightforward.</p><div class="paper-points"><span>1. Review your credits</span><span>2. Download an application checklist</span><span>3. Request your certificate from ARRL</span></div><button class="button primary" id="paper-button" type="button">Prepare paper award <span class="arrow">→</span></button></div>
-          <div class="certificate"><div class="certificate-inner"><span>American Radio Relay League</span><h3>DXCC<br />Award</h3><p>Presented to<br /><strong>JR1BTR</strong></p><small>For confirmed two-way communication<br />with 100 or more DXCC entities.</small><i>ARRL</i></div></div>
+        <section class="pending-section" id="pending-section">
+          <div class="matrix-heading"><div><span class="mini-label">待确认 QSO</span><h3>尚未获得 LoTW 确认的联络</h3></div><strong id="pending-list-count">0 条</strong></div>
+          <div class="pending-scroll"><table class="pending-table"><thead><tr><th>呼号</th><th>日期</th><th>波段</th><th>模式</th><th>实体</th><th>数据来源</th></tr></thead><tbody id="pending-body"></tbody></table></div>
+          <button class="button secondary" id="pending-more" type="button" hidden>显示更多</button>
         </section>
-      </main>
-      <footer><a class="brand" href="#top"><span class="brand-mark">B</span><span>Better<span>LoTW</span></span></a><span>Built for the joy of the chase.</span><span>Not affiliated with ARRL or QRZ.</span></footer>
-    </div>
-    <dialog id="paper-dialog"><button class="dialog-close" aria-label="Close" type="button">×</button><span class="eyebrow">PAPER AWARD PREP</span><h2>Your checklist is ready.</h2><p>BetterLoTW has verified the credits visible in this dashboard. Select an award, then use the official ARRL Award Application portal to complete the request and payment.</p><label>Choose an award<select id="paper-award"></select></label><a class="button primary wide" href="https://www.arrl.org/awards" target="_blank" rel="noreferrer">Open official ARRL award page <span class="arrow">→</span></a><small>ARRL handles applications, fees, review, and certificate fulfillment.</small></dialog>
-    <script src="config.js"></script><script src="app.js"></script>
+      </section>
+
+      <section class="paper-section" id="paper">
+        <div><span class="eyebrow">纸质奖状</span><h2>从进度检查到官方申请</h2><p>BetterLoTW 帮你整理进度和缺项；最终资格、费用、审核与证书寄送均由奖项主办方负责。</p></div>
+        <button class="button primary" id="paper-button" type="button">查看官方申请入口</button>
+      </section>
+    </main>
+
+    <footer><span>BetterLoTW</span><span>非 ARRL、LoTW 或 QRZ 官方产品。奖项结果仅供整理参考。</span></footer>
+
+    <dialog id="paper-dialog">
+      <button class="dialog-close" aria-label="关闭" type="button">×</button>
+      <span class="eyebrow">官方申请</span><h2>申请纸质奖状</h2>
+      <p>选择奖项后前往官方页面核对规则、费用与 LoTW 正式积分。BetterLoTW 不会替你提交或付款。</p>
+      <label for="paper-award">奖项<select id="paper-award"></select></label>
+      <a class="button primary wide" href="https://www.arrl.org/awards" target="_blank" rel="noreferrer">打开 ARRL 奖项页面</a>
+      <small>对于 CQ 奖项，请在相应 CQ 官方系统中完成申请。</small>
+    </dialog>
+
+    <script src="config.js"></script>
+    <script src="dxcc-catalog.js"></script>
+    <script src="app.js"></script>
   </body>
 </html>

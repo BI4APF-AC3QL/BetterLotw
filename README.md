@@ -1,10 +1,19 @@
 # BetterLoTW
 
-A QRZ-inspired dashboard for viewing LoTW-confirmed QSO progress across DXCC, WAS, VUCC, Triple Play, WAZ, and WPX. It includes a visual entity map and a guided hand-off to ARRL's official paper-award process.
+一个默认中文、以功能为主的 LoTW 奖项工作台。页面会分别显示完整 QSO、LoTW 已确认 QSO、待确认 QSO，并计算 DXCC、WAS、VUCC、Triple Play、WAZ 与 WPX 进度。
+
+DXCC 分析使用与 QRZ 奖项页相似的交互逻辑：地图和明细矩阵同步显示“已确认 / 待确认 / 无”，支持状态筛选、地图缩放拖动、实体提示和地图到表格的联动。界面与地图资产均为本项目独立实现，不复制 QRZ 品牌或私有数据。
 
 ## Run locally
 
-Open `index.html` in a browser, or serve this directory with any static web server. The included station is demo data; use **Connect your log** to configure live sync.
+使用任意静态网页服务器运行本目录，然后在页面中点击“载入示例数据”即可检查全部界面功能。实时数据需要配置下方 Cloudflare Worker。
+
+### 实体目录与推断边界
+
+- `dxcc-catalog.js` 由公开的 [Country Files](https://www.country-files.com/) `cty.csv` 数据生成，包含当前 DXCC 实体中心位置与呼号前缀。
+- LoTW 的“全部 QSO”报告通常不含 DXCC、国家、CQ 区和网格字段，因此待确认 QSO 的实体与 CQ 区通过最长呼号前缀进行推断，并在页面明确标记为“前缀推断”。
+- 州和 Maidenhead 网格无法从普通呼号可靠推断，BetterLoTW 不会伪造这些字段；无法推断的记录仍会出现在待确认 QSO 列表中。
+- 地图圆点表示实体中心位置，不是国界着色图，也不用于判断奖项的正式实体有效日期。
 
 ## 生产环境完整配置
 
