@@ -47,13 +47,15 @@ export default {
       const { username, password, report, from, to } = await request.json();
       if (!/^[A-Z0-9/]{3,20}$/i.test(username || "") || typeof password !== "string" || password.length < 1 || password.length > 256) return response(request, env, { error: "请输入有效的 LoTW 用户名和密码。" }, 400);
       if (!["qso","qsl"].includes(report) || !validDate(from) || !validDate(to) || from > to) return response(request, env, { error: "分批同步的日期范围无效。" }, 400);
-      // LoTW applies different date fields to uploaded QSOs and received QSLs.
-      // Keeping them as separate, serial requests lets the browser show useful
-      // progress and lets oversized ranges be split without losing records.
+      // qso_qsorxsince and qso_qslsince select LoTW upload/match timestamps;
+      // they do not accept an upper bound. QSO-date windows must instead use
+      // qso_startdate/qso_enddate, which work for both report kinds.
+      // Keeping requests serial lets the browser show progress and lets an
+      // oversized window be split without duplicating records.
       const common = { login:username.trim(), password, qso_query:"1" };
       const query = new URLSearchParams(report === "qso"
-        ? { ...common, qso_qsl:"no", qso_qsorxsince:from, qso_qsorxuntil:to }
-        : { ...common, qso_qsl:"yes", qso_qslsince:from, qso_qsluntil:to, qso_qsldetail:"yes" }
+        ? { ...common, qso_qsl:"no", qso_qsorxsince:"1900-01-01", qso_startdate:from, qso_enddate:to }
+        : { ...common, qso_qsl:"yes", qso_qslsince:"1900-01-01", qso_startdate:from, qso_enddate:to, qso_qsldetail:"yes" }
       );
       const fetchReport = query => fetch(`${LOTW_REPORT_URL}?${query}`, {
         method: "GET",
