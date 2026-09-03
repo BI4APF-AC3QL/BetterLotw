@@ -41,6 +41,11 @@
             <button class="button primary wide" type="submit">下载并分析全部 QSO</button>
           </form>
           <div class="sync-actions"><button id="demo-button" class="button secondary" type="button">载入示例数据</button><span>本站不会保存密码</span></div>
+          <div class="sync-progress" id="sync-progress" role="status" aria-live="polite" hidden>
+            <div><strong id="sync-progress-label">准备同步…</strong><span id="sync-progress-percent">0%</span></div>
+            <progress id="sync-progress-bar" max="1" value="0">0%</progress>
+            <small id="sync-progress-detail"></small>
+          </div>
           <div class="connection-help" id="connection-help" hidden></div>
         </article>
       </section>
@@ -63,7 +68,7 @@
           <article class="analysis-panel analysis-map-panel">
             <div class="analysis-panel-title">
               <div><span class="mini-label">实体位置图</span><strong id="map-title">DXCC 实体状态</strong></div>
-              <div class="map-controls" aria-label="地图控制"><button type="button" id="map-zoom-in" title="放大" aria-label="放大">＋</button><button type="button" id="map-zoom-out" title="缩小" aria-label="缩小">−</button><button type="button" id="map-reset" title="重置地图">重置</button></div>
+              <div class="map-header-actions"><div class="map-view-toggle" role="group" aria-label="地图视图"><button type="button" data-map-view="world" aria-pressed="true">世界地图</button><button type="button" data-map-view="azimuthal" aria-pressed="false">大圆方位</button></div><div class="map-controls" aria-label="世界地图控制"><button type="button" id="map-zoom-in" title="放大" aria-label="放大">＋</button><button type="button" id="map-zoom-out" title="缩小" aria-label="缩小">−</button><button type="button" id="map-reset" title="重置地图">重置</button></div></div>
             </div>
             <div class="analysis-map" id="analysis-map">
               <svg id="entity-map" viewBox="0 0 960 430" preserveAspectRatio="xMidYMid meet" role="img" aria-label="DXCC 实体位置状态地图">
@@ -76,9 +81,26 @@
               <div class="map-tooltip" id="map-tooltip" hidden></div>
               <div class="map-empty" id="analysis-map-empty" hidden>当前视图没有可定位的记录。</div>
             </div>
+            <div class="azimuthal-view" id="azimuthal-view" hidden>
+              <div class="station-controls">
+                <label>站点纬度<input id="station-lat" inputmode="decimal" autocomplete="off" placeholder="例如 39.90" aria-label="站点纬度，北纬为正" /></label>
+                <label>站点经度<input id="station-lon" inputmode="decimal" autocomplete="off" placeholder="例如 116.40" aria-label="站点经度，东经为正" /></label>
+                <button class="button secondary" id="station-save" type="button">保存位置</button><button class="button secondary" id="station-locate" type="button">使用当前位置</button>
+              </div>
+              <p class="station-help" id="station-help">输入电台位置后，地图将以此为中心显示短路径真方位与距离。位置只保存在此浏览器。</p>
+              <div class="azimuthal-map" id="azimuthal-map">
+                <svg id="azimuthal-svg" viewBox="0 0 600 600" role="img" aria-label="以站点为中心的大圆方位地图">
+                  <circle class="azimuthal-ocean" cx="300" cy="300" r="270"></circle>
+                  <g id="azimuthal-grid"></g><g id="azimuthal-pins"></g><circle class="station-marker" cx="300" cy="300" r="5"></circle>
+                </svg>
+                <div class="map-tooltip" id="azimuthal-tooltip" hidden></div>
+                <div class="map-empty" id="azimuthal-empty">请输入站点经纬度以显示大圆方位。</div>
+              </div>
+              <small class="azimuthal-note">方位以真北为 0°，显示最短大圆路径；调天线时请自行换算当地磁偏角。</small>
+            </div>
             <div class="map-footer">
               <div class="map-legend"><span><i class="legend confirmed"></i>已确认 <b id="legend-confirmed">0</b></span><span><i class="legend unconfirmed"></i>待确认 <b id="legend-unconfirmed">0</b></span><span><i class="legend none"></i>无 <b id="legend-none">0</b></span></div>
-              <small>真实国界底图：Natural Earth；小型实体仍以圆点补充显示。</small>
+              <small id="map-footer-note">真实国界底图：Natural Earth；小型实体仍以圆点补充显示。</small>
             </div>
           </article>
 

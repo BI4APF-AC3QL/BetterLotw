@@ -38,6 +38,12 @@ input,select { min-width:0; height:40px; padding:0 11px; border:1px solid #cfd9e
 .sync-card form .button { margin-top:8px; }
 .sync-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; }
 .sync-actions span { color:#7a8898; font-size:10px; }
+.sync-progress { margin-top:13px; padding:11px; border:1px solid #d5e3f7; border-radius:7px; background:#f6f9fe; }
+.sync-progress>div { display:flex; align-items:center; justify-content:space-between; gap:10px; color:#304968; font-size:11px; }
+.sync-progress strong { font-weight:800; }
+.sync-progress span { color:var(--blue); font-variant-numeric:tabular-nums; font-weight:800; }
+.sync-progress progress { width:100%; height:7px; margin:8px 0 5px; accent-color:var(--blue); }
+.sync-progress small { display:block; color:#687a8f; font-size:10px; line-height:1.45; }
 .connection-help { margin-top:12px; padding:10px; border:1px solid #efd690; border-radius:7px; color:#745913; background:#fff7df; font-size:11px; line-height:1.55; }
 .button { min-height:40px; display:inline-flex; align-items:center; justify-content:center; gap:10px; padding:0 16px; border:1px solid transparent; border-radius:7px; font-size:12px; font-weight:800; text-decoration:none; }
 .button.primary { color:#fff; background:var(--blue); }

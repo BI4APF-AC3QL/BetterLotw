@@ -41,6 +41,10 @@ let currentMatrixRows = [];
 let currentMapRows = [];
 let pendingVisible = 80;
 const mapView = { scale:1, x:0, y:0, dragging:false, startX:0, startY:0, originX:0, originY:0 };
+let activeMapView = "world";
+let stationLocation = null;
+const AZIMUTHAL_RADIUS = 270;
+const EARTH_RADIUS_KM = 6371.0088;
 
 const demoQsos = [
   {CALL:"JA1ABC",COUNTRY:"Japan",DXCC:"339",CQZ:"25",PFX:"JA1",GRIDSQUARE:"PM95",BAND:"20M",MODE:"FT8",QSL_RCVD:"Y",QSO_DATE:"20260831"},
@@ -132,13 +136,18 @@ function deriveWpxPrefix(qso) {
   return match ? match[1] : "";
 }
 
+function normalizedCqZone(qso) {
+  const zone = Number(qso._RESOLVED_CQZ);
+  return Number.isInteger(zone) && zone >= 1 && zone <= 40 ? String(zone) : "";
+}
+
 function calculateAwardProgress(qsos) {
   const unique = values => new Set(values.filter(Boolean));
   const values = {};
   values.dxcc = unique(qsos.map(q => q._RESOLVED_DXCC).filter(code => /^\d+$/.test(code || "") && code !== "0")).size;
   values.was = unique(qsos.filter(validUsQso).map(q => (q.STATE || "").toUpperCase()).filter(code => US_STATES.includes(code))).size;
   values.vucc = unique(qsos.map(q => (q.GRIDSQUARE || "").slice(0,4).toUpperCase()).filter(grid => /^[A-R]{2}\d{2}$/.test(grid))).size;
-  values.waz = unique(qsos.map(q => q._RESOLVED_CQZ).filter(zone => Number(zone) >= 1 && Number(zone) <= 40)).size;
+  values.waz = unique(qsos.map(normalizedCqZone)).size;
   values.wpx = unique(qsos.map(deriveWpxPrefix)).size;
   values.triple = ["CW","PHONE","DIGITAL"].reduce((total,mode) => total + unique(qsos.filter(q => normalizedMode(q) === mode && validUsQso(q)).map(q => (q.STATE || "").toUpperCase()).filter(code => US_STATES.includes(code))).size,0);
   return createAwards(values);
@@ -159,8 +168,9 @@ function entityFor(qso,awardId) {
     const mode = normalizedMode(qso);
     return validUsQso(qso) && US_STATES.includes(state) && ["CW","PHONE","DIGITAL"].includes(mode) ? {key:`${state}-${mode}`,label:`${state} · ${mode === "DIGITAL" ? "数字" : mode === "PHONE" ? "话音" : "CW"}`} : null;
   }
-  if (awardId === "waz" && Number(qso._RESOLVED_CQZ) >= 1 && Number(qso._RESOLVED_CQZ) <= 40) {
-    const zone = String(Number(qso._RESOLVED_CQZ));
+  if (awardId === "waz") {
+    const zone = normalizedCqZone(qso);
+    if (!zone) return null;
     return {key:zone,label:`CQ ${zone} 区`,inferred:qso._INFERRED};
   }
   if (awardId === "wpx") {
@@ -333,6 +343,115 @@ function renderMap() {
   $("#legend-none").textContent = counts.none;
   $("#analysis-map-empty").hidden = WORLD_FEATURES.length > 0 || located.length > 0;
   $("#entity-map").setAttribute("aria-label",`真实世界国界地图：已确认 ${counts.confirmed}，待确认 ${counts.unconfirmed}，无 ${counts.none}`);
+  renderAzimuthalMap();
+}
+
+function validStationLocation(location) {
+  return location && Number.isFinite(location.lat) && Number.isFinite(location.lon) && Math.abs(location.lat) <= 90 && Math.abs(location.lon) <= 180;
+}
+
+function degreesToRadians(value) {
+  return value * Math.PI / 180;
+}
+
+function greatCircleDirection(from,to) {
+  const fromLat = degreesToRadians(from.lat);
+  const toLat = degreesToRadians(to.lat);
+  const deltaLon = degreesToRadians(to.lon - from.lon);
+  const cosine = Math.min(1,Math.max(-1,Math.sin(fromLat) * Math.sin(toLat) + Math.cos(fromLat) * Math.cos(toLat) * Math.cos(deltaLon)));
+  const centralAngle = Math.acos(cosine);
+  const bearing = (Math.atan2(Math.sin(deltaLon) * Math.cos(toLat),Math.cos(fromLat) * Math.sin(toLat) - Math.sin(fromLat) * Math.cos(toLat) * Math.cos(deltaLon)) * 180 / Math.PI + 360) % 360;
+  return {bearing:Math.round(bearing),distanceKm:Math.round(EARTH_RADIUS_KM * centralAngle),centralAngle};
+}
+
+function azimuthalPoint(entity) {
+  const direction = greatCircleDirection(stationLocation,entity);
+  const radius = AZIMUTHAL_RADIUS * direction.centralAngle / Math.PI;
+  const angle = degreesToRadians(direction.bearing);
+  return {
+    ...direction,
+    x:300 + radius * Math.sin(angle),
+    y:300 - radius * Math.cos(angle)
+  };
+}
+
+function azimuthalGrid() {
+  const rings = [5000,10000,15000,20000];
+  const ringMarkup = rings.map(distance => {
+    const radius = AZIMUTHAL_RADIUS * distance / (Math.PI * EARTH_RADIUS_KM);
+    return `<circle class="azimuthal-ring" cx="300" cy="300" r="${radius.toFixed(2)}"></circle><text class="azimuthal-distance" x="300" y="${(300 - radius + 10).toFixed(2)}">${distance.toLocaleString()} km</text>`;
+  }).join("");
+  const axes = [0,45,90,135,180,225,270,315].map(angle => {
+    const radians = degreesToRadians(angle);
+    return `<line class="azimuthal-axis" x1="300" y1="300" x2="${(300 + AZIMUTHAL_RADIUS * Math.sin(radians)).toFixed(2)}" y2="${(300 - AZIMUTHAL_RADIUS * Math.cos(radians)).toFixed(2)}"></line>`;
+  }).join("");
+  return `${axes}${ringMarkup}<text class="azimuthal-cardinal" x="300" y="22">N</text><text class="azimuthal-cardinal" x="578" y="305">E</text><text class="azimuthal-cardinal" x="300" y="590">S</text><text class="azimuthal-cardinal" x="22" y="305">W</text>`;
+}
+
+function renderAzimuthalMap() {
+  $("#azimuthal-grid").innerHTML = azimuthalGrid();
+  const empty = $("#azimuthal-empty");
+  if (!validStationLocation(stationLocation)) {
+    $("#azimuthal-pins").innerHTML = "";
+    empty.hidden = false;
+    return;
+  }
+  const visible = (selectedStatus === "all" ? currentMapRows.filter(row => row.status !== "none") : currentMapRows.filter(row => row.status === selectedStatus))
+    .filter(row => row.entity && Number.isFinite(row.entity.lat) && Number.isFinite(row.entity.lon));
+  $("#azimuthal-pins").innerHTML = visible.map(row => {
+    const point = azimuthalPoint(row.entity);
+    return `<circle class="azimuthal-pin ${row.status}" cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="5"
+      tabindex="0" role="button" data-label="${h(row.label)}" data-status="${row.status}" data-count="${row.qsos.length}" data-bearing="${point.bearing}" data-distance="${point.distanceKm}"
+      aria-label="${h(row.label)}，${STATUS_LABELS[row.status]}，短路径真方位 ${point.bearing} 度，距离 ${point.distanceKm} 公里"></circle>`;
+  }).join("");
+  empty.hidden = visible.length > 0;
+  $("#azimuthal-svg").setAttribute("aria-label",`以站点为中心的大圆方位地图：${visible.length} 个有联络的可定位实体`);
+}
+
+function setMapView(view) {
+  activeMapView = view === "azimuthal" ? "azimuthal" : "world";
+  $("#analysis-map").hidden = activeMapView !== "world";
+  $("#azimuthal-view").hidden = activeMapView !== "azimuthal";
+  document.querySelectorAll("[data-map-view]").forEach(button => button.setAttribute("aria-pressed",String(button.dataset.mapView === activeMapView)));
+  $("#map-footer-note").textContent = activeMapView === "world"
+    ? "真实国界底图：Natural Earth；小型实体仍以圆点补充显示。"
+    : "大圆方位图仅显示已有联络的可定位实体；圆环表示距站点的地表距离。";
+  if (activeMapView === "azimuthal") renderAzimuthalMap();
+}
+
+function readStationLocation() {
+  const latText = $("#station-lat").value.trim();
+  const lonText = $("#station-lon").value.trim();
+  const location = {lat:Number(latText),lon:Number(lonText)};
+  return latText && lonText && validStationLocation(location) ? location : null;
+}
+
+function setStationLocation(location,message = "站点位置已保存到此浏览器。") {
+  stationLocation = location;
+  $("#station-lat").value = location.lat.toFixed(5).replace(/0+$/,"").replace(/\.$/,"");
+  $("#station-lon").value = location.lon.toFixed(5).replace(/0+$/,"").replace(/\.$/,"");
+  try { localStorage.setItem("betterlotw.station-location",JSON.stringify(location)); } catch {}
+  $("#station-help").textContent = message;
+  renderAzimuthalMap();
+}
+
+function restoreStationLocation() {
+  try {
+    const stored = JSON.parse(localStorage.getItem("betterlotw.station-location"));
+    if (validStationLocation(stored)) setStationLocation(stored,"已恢复此浏览器保存的站点位置。");
+  } catch {}
+}
+
+function showAzimuthalTooltip(pin,event) {
+  const tooltip = $("#azimuthal-tooltip");
+  const rect = $("#azimuthal-map").getBoundingClientRect();
+  const status = STATUS_LABELS[pin.dataset.status] || "";
+  tooltip.innerHTML = `<strong>${h(pin.dataset.label)}</strong><span>${status} · 真方位 ${pin.dataset.bearing}° · ${Number(pin.dataset.distance).toLocaleString()} km</span>`;
+  const x = event?.clientX ? event.clientX - rect.left : rect.width / 2;
+  const y = event?.clientY ? event.clientY - rect.top : rect.height / 2;
+  tooltip.style.left = `${Math.max(8,Math.min(rect.width - 170,x + 10))}px`;
+  tooltip.style.top = `${Math.max(8,y - 50)}px`;
+  tooltip.hidden = false;
 }
 
 function showMapTooltip(pin,event) {
@@ -477,11 +596,134 @@ function applyQsoData(qsos,confirmedQsos,calculatedLabel) {
   renderAwardAnalysis("dxcc");
 }
 
-function applyLiveLog(adif,qslAdif = "") {
-  const qsos = parseAdif(adif);
+const SYNC_START_DATE = "1900-01-01";
+const SYNC_INITIAL_RANGE_YEARS = 25;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function dateFromIso(value) {
+  return new Date(`${value}T00:00:00Z`);
+}
+
+function isoDate(date) {
+  return date.toISOString().slice(0,10);
+}
+
+function addDays(value,days) {
+  const date = dateFromIso(value);
+  date.setUTCDate(date.getUTCDate() + days);
+  return isoDate(date);
+}
+
+function addYears(value,years) {
+  const date = dateFromIso(value);
+  date.setUTCFullYear(date.getUTCFullYear() + years);
+  return isoDate(date);
+}
+
+function rangeDays(range) {
+  return Math.round((dateFromIso(range.to) - dateFromIso(range.from)) / DAY_MS) + 1;
+}
+
+function createSyncRanges() {
+  const today = isoDate(new Date());
+  const ranges = [];
+  let from = SYNC_START_DATE;
+  while (from <= today) {
+    const to = [addDays(addYears(from,SYNC_INITIAL_RANGE_YEARS),-1),today].sort()[0];
+    ranges.push({from,to});
+    from = addDays(to,1);
+  }
+  return ranges;
+}
+
+function splitSyncRange(range) {
+  const days = rangeDays(range);
+  if (days < 2) return null;
+  const leftTo = addDays(range.from,Math.floor(days / 2) - 1);
+  return [{from:range.from,to:leftTo},{from:addDays(leftTo,1),to:range.to}];
+}
+
+function setSyncProgress({label,detail,completedDays,totalDays}) {
+  const progress = $("#sync-progress");
+  const percentage = totalDays ? Math.min(100,Math.round(completedDays / totalDays * 100)) : 0;
+  progress.hidden = false;
+  $("#sync-progress-label").textContent = label;
+  $("#sync-progress-percent").textContent = `${percentage}%`;
+  $("#sync-progress-bar").max = Math.max(1,totalDays);
+  $("#sync-progress-bar").value = completedDays;
+  $("#sync-progress-detail").textContent = detail;
+}
+
+async function requestSyncRange(endpoint,credentials,report,range) {
+  const response = await fetch(endpoint,{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({...credentials,report,from:range.from,to:range.to}),cache:"no-store"
+  });
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error("同步服务返回了无法识别的响应。请稍后重试。");
+  }
+  if (!response.ok) {
+    const error = new Error(data.error || "同步服务无法验证 LoTW 登录信息。");
+    error.rangeTooLarge = response.status === 413 && data.rangeTooLarge === true;
+    throw error;
+  }
+  if (data.report !== report || data.from !== range.from || data.to !== range.to) throw new Error("同步服务正在更新分批下载功能，请在一分钟后重试。");
+  return data;
+}
+
+async function downloadLiveLog(endpoint,credentials) {
+  const initialRanges = createSyncRanges();
+  const totalDays = initialRanges.reduce((total,range) => total + rangeDays(range),0) * 2;
+  let completedDays = 0;
+  let qsoCount = 0;
+  let confirmedCount = 0;
+  const reports = { qso:[], qsl:[] };
+
+  for (const report of ["qso","qsl"]) {
+    const pending = initialRanges.map(range => ({...range}));
+    while (pending.length) {
+      const range = pending.shift();
+      const reportLabel = report === "qso" ? "全部 QSO" : "确认详情";
+      const countDetail = report === "qso"
+        ? `已下载 ${qsoCount.toLocaleString()} 条全部 QSO`
+        : `已下载 ${qsoCount.toLocaleString()} 条全部 QSO、${confirmedCount.toLocaleString()} 条确认详情`;
+      setSyncProgress({
+        label:`正在下载${reportLabel}…`,
+        detail:`${range.from} 至 ${range.to} · ${countDetail} · 已完成 ${completedDays.toLocaleString()} / ${totalDays.toLocaleString()} 天`,
+        completedDays,totalDays
+      });
+      try {
+        const data = await requestSyncRange(endpoint,credentials,report,range);
+        const rows = parseAdif(data.adif);
+        reports[report].push(...rows);
+        if (report === "qso") qsoCount += rows.length;
+        else confirmedCount += rows.length;
+        completedDays += rangeDays(range);
+      } catch (error) {
+        const split = error.rangeTooLarge ? splitSyncRange(range) : null;
+        if (!split) throw error;
+        pending.unshift(...split);
+        setSyncProgress({
+          label:"数据量较大，正在细分下载…",
+          detail:`${range.from} 至 ${range.to} 超过单批大小限制，已自动拆分为更小的时间段。`,
+          completedDays,totalDays
+        });
+      }
+    }
+  }
+
+  const qsos = reports.qso;
+  const confirmedQsos = reports.qsl;
   if (!qsos.length) throw new Error("LoTW 没有返回任何 QSO。请检查登录信息或稍后重试。");
-  const confirmedQsos = qslAdif ? parseAdif(qslAdif) : qsos.filter(isConfirmed);
   applyQsoData(qsos,confirmedQsos,new Intl.DateTimeFormat("zh-CN",{dateStyle:"short",timeStyle:"short"}).format(new Date()));
+  setSyncProgress({
+    label:"同步完成 ✓",
+    detail:`已下载 ${qsos.length.toLocaleString()} 条全部 QSO 与 ${confirmedQsos.length.toLocaleString()} 条确认详情。`,
+    completedDays:totalDays,totalDays
+  });
 }
 
 function openPaperDialog() {
@@ -503,23 +745,18 @@ $("#connect-form").addEventListener("submit",async event => {
     return;
   }
   button.disabled = true;
-  button.textContent = "正在下载完整 QSO 与确认详情…";
+  button.textContent = "正在准备分批下载…";
   help.hidden = true;
+  $("#sync-progress").hidden = true;
   try {
-    const response = await fetch(config.syncEndpoint,{
-      method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({username:$("#callsign").value.trim(),password:$("#lotw-key").value}),cache:"no-store"
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "同步服务无法验证 LoTW 登录信息。");
-    applyLiveLog(data.adif || "",data.qslAdif || "");
+    await downloadLiveLog(config.syncEndpoint,{username:$("#callsign").value.trim(),password:$("#lotw-key").value});
     $("#lotw-key").value = "";
     button.textContent = "完整日志同步成功 ✓";
     setTimeout(() => { button.textContent = "下载并分析全部 QSO"; },2500);
     $("#award-analysis").scrollIntoView({behavior:"smooth",block:"start"});
   } catch (error) {
     help.hidden = false;
-    help.textContent = error instanceof TypeError && /fetch/i.test(error.message) ? "无法连接 LoTW 同步服务。请检查网络和 Cloudflare Worker 状态后重试。" : error.message;
+    help.textContent = error instanceof TypeError && /fetch/i.test(error.message) ? "无法连接 LoTW 同步服务。该服务需要能够访问 Cloudflare Workers 与 LoTW 的国际网络；如当前网络受限，请启用可用的代理服务（科学上网）后重试。" : error.message;
     button.textContent = "重新同步";
   } finally {
     button.disabled = false;
@@ -567,6 +804,27 @@ $("#map-zoom-out").addEventListener("click",() => zoomMap(-0.5));
 $("#map-reset").addEventListener("click",() => {
   Object.assign(mapView,{scale:1,x:0,y:0});
   applyMapTransform();
+});
+document.querySelectorAll("[data-map-view]").forEach(button => button.addEventListener("click",() => setMapView(button.dataset.mapView)));
+$("#station-save").addEventListener("click",() => {
+  const location = readStationLocation();
+  if (!location) {
+    $("#station-help").textContent = "请输入有效的纬度（−90 至 90）和经度（−180 至 180）；北纬、东经为正。";
+    return;
+  }
+  setStationLocation(location);
+});
+$("#station-locate").addEventListener("click",() => {
+  if (!navigator.geolocation) {
+    $("#station-help").textContent = "当前浏览器不支持定位，请手动输入电台经纬度。";
+    return;
+  }
+  $("#station-help").textContent = "正在请求当前位置；请在浏览器中允许定位。";
+  navigator.geolocation.getCurrentPosition(position => {
+    setStationLocation({lat:position.coords.latitude,lon:position.coords.longitude},"已使用当前位置；若移动设备不在电台所在地，请改为手动输入电台经纬度。");
+  },() => {
+    $("#station-help").textContent = "无法取得当前位置，请检查定位权限或手动输入电台经纬度。";
+  },{enableHighAccuracy:false,timeout:10000,maximumAge:300000});
 });
 
 $("#entity-map").addEventListener("pointerdown",event => {
@@ -621,6 +879,21 @@ $("#analysis-map-pins").addEventListener("click",event => {
     setTimeout(() => row.classList.remove("row-highlight"),1800);
   }
 });
+$("#azimuthal-map").addEventListener("pointermove",event => {
+  const pin = event.target.closest(".azimuthal-pin");
+  if (pin) showAzimuthalTooltip(pin,event);
+});
+$("#azimuthal-map").addEventListener("pointerleave",() => { $("#azimuthal-tooltip").hidden = true; });
+$("#azimuthal-pins").addEventListener("focusin",event => {
+  const pin = event.target.closest(".azimuthal-pin");
+  if (pin) showAzimuthalTooltip(pin);
+});
+$("#azimuthal-pins").addEventListener("focusout",() => { $("#azimuthal-tooltip").hidden = true; });
+$("#azimuthal-pins").addEventListener("click",event => {
+  const pin = event.target.closest(".azimuthal-pin");
+  if (pin) showAzimuthalTooltip(pin,event);
+});
 
+restoreStationLocation();
 renderAwards();
 renderAwardAnalysis("dxcc");
