@@ -726,6 +726,32 @@ async function downloadLiveLog(endpoint,credentials) {
   });
 }
 
+async function downloadFullAdif(endpoint,credentials) {
+  const response = await fetch(endpoint,{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({...credentials,report:"full-qso"}),cache:"no-store"
+  });
+  if (!response.ok) {
+    let data = {};
+    try { data = await response.json(); } catch {}
+    throw new Error(data.error || "LoTW 无法生成完整 ADIF 报告。请稍后重试。");
+  }
+  const adif = await response.text();
+  if (!/<eoh>|<eor>/i.test(adif)) throw new Error("LoTW 没有返回有效的 ADIF 数据。请检查登录信息后重试。");
+  const callsign = String(credentials.username || "lotw").toUpperCase().replace(/[^A-Z0-9]+/g,"-").replace(/^-|-$/g,"") || "lotw";
+  const date = new Date().toISOString().slice(0,10).replaceAll("-","");
+  const blob = new Blob([adif],{type:"application/x-arrl-adif;charset=UTF-8"});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${callsign}-all-qsos-${date}.adi`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url),60000);
+  return {bytes:blob.size};
+}
+
 function openPaperDialog() {
   $("#paper-award").value = selectedAwardId;
   const link = $("#paper-dialog a");
@@ -760,6 +786,37 @@ $("#connect-form").addEventListener("submit",async event => {
     button.textContent = "重新同步";
   } finally {
     button.disabled = false;
+  }
+});
+$("#adif-download-button").addEventListener("click",async event => {
+  const form = $("#connect-form");
+  if (!form.reportValidity()) return;
+  const button = event.currentTarget;
+  const syncButton = $("#connect-form button[type=submit]");
+  const help = $("#connection-help");
+  const config = window.BETTERLOTW_CONFIG || {};
+  if (!config.syncEndpoint || config.syncEndpoint.startsWith("__")) {
+    help.hidden = false;
+    help.textContent = "同步服务尚未配置，无法下载 ADIF 文件。";
+    return;
+  }
+  button.disabled = true;
+  syncButton.disabled = true;
+  button.textContent = "正在生成完整 ADIF…";
+  help.hidden = false;
+  help.textContent = "正在一次性请求全部 QSO 原始 ADIF；请勿关闭此页面。";
+  try {
+    const result = await downloadFullAdif(config.syncEndpoint,{username:$("#callsign").value.trim(),password:$("#lotw-key").value});
+    $("#lotw-key").value = "";
+    button.textContent = "ADIF 下载成功 ✓";
+    help.textContent = `已下载完整 ADIF（${(result.bytes / 1024 / 1024).toFixed(2)} MiB）。`;
+    setTimeout(() => { button.textContent = "下载全部 QSO（ADIF）"; },2500);
+  } catch (error) {
+    help.textContent = error instanceof TypeError && /fetch/i.test(error.message) ? "无法连接 LoTW 同步服务。请检查网络后重试。" : error.message;
+    button.textContent = "重新下载 ADIF";
+  } finally {
+    button.disabled = false;
+    syncButton.disabled = false;
   }
 });
 

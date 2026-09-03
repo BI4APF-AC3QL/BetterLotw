@@ -37,6 +37,7 @@ h1 { margin-bottom:12px; color:var(--navy); font-size:34px; letter-spacing:-1.4p
 input,select { min-width:0; height:40px; padding:0 11px; border:1px solid #cfd9e2; border-radius:7px; color:var(--ink); background:#fff; outline-color:var(--blue); }
 .sync-card form .button { margin-top:8px; }
 .sync-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; }
+.sync-action-buttons { display:flex; flex-wrap:wrap; gap:8px; }
 .sync-actions span { color:#7a8898; font-size:10px; }
 .sync-progress { margin-top:13px; padding:11px; border:1px solid #d5e3f7; border-radius:7px; background:#f6f9fe; }
 .sync-progress>div { display:flex; align-items:center; justify-content:space-between; gap:10px; color:#304968; font-size:11px; }

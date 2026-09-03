@@ -40,7 +40,7 @@
             <input id="lotw-key" autocomplete="current-password" type="password" placeholder="请输入密码或应用密钥" required />
             <button class="button primary wide" type="submit">下载并分析全部 QSO</button>
           </form>
-          <div class="sync-actions"><button id="demo-button" class="button secondary" type="button">载入示例数据</button><span>本站不会保存密码</span></div>
+          <div class="sync-actions"><div class="sync-action-buttons"><button id="demo-button" class="button secondary" type="button">载入示例数据</button><button id="adif-download-button" class="button secondary" type="button">下载全部 QSO（ADIF）</button></div><span>本站不会保存密码</span></div>
           <div class="sync-progress" id="sync-progress" role="status" aria-live="polite" hidden>
             <div><strong id="sync-progress-label">准备同步…</strong><span id="sync-progress-percent">0%</span></div>
             <progress id="sync-progress-bar" max="1" value="0">0%</progress>
