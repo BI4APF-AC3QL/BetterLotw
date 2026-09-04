@@ -364,19 +364,30 @@ function greatCircleDirection(from,to) {
   const deltaLon = degreesToRadians(to.lon - from.lon);
   const cosine = Math.min(1,Math.max(-1,Math.sin(fromLat) * Math.sin(toLat) + Math.cos(fromLat) * Math.cos(toLat) * Math.cos(deltaLon)));
   const centralAngle = Math.acos(cosine);
-  const bearing = (Math.atan2(Math.sin(deltaLon) * Math.cos(toLat),Math.cos(fromLat) * Math.sin(toLat) - Math.sin(fromLat) * Math.cos(toLat) * Math.cos(deltaLon)) * 180 / Math.PI + 360) % 360;
-  return {bearing:Math.round(bearing),distanceKm:Math.round(EARTH_RADIUS_KM * centralAngle),centralAngle};
+  const bearingDegrees = (Math.atan2(Math.sin(deltaLon) * Math.cos(toLat),Math.cos(fromLat) * Math.sin(toLat) - Math.sin(fromLat) * Math.cos(toLat) * Math.cos(deltaLon)) * 180 / Math.PI + 360) % 360;
+  return {bearing:Math.round(bearingDegrees),bearingDegrees,distanceKm:Math.round(EARTH_RADIUS_KM * centralAngle),centralAngle};
 }
 
 function azimuthalPoint(entity) {
-  const direction = greatCircleDirection(stationLocation,entity);
+  return azimuthalPointForLocation(entity);
+}
+
+function azimuthalPointForLocation(location) {
+  const direction = greatCircleDirection(stationLocation,location);
   const radius = AZIMUTHAL_RADIUS * direction.centralAngle / Math.PI;
-  const angle = degreesToRadians(direction.bearing);
+  const angle = degreesToRadians(direction.bearingDegrees);
   return {
     ...direction,
     x:300 + radius * Math.sin(angle),
     y:300 - radius * Math.cos(angle)
   };
+}
+
+function azimuthalLandPath(feature) {
+  return feature.polygons.flatMap(polygon => polygon.map(ring => {
+    const points = ring.map(([lon,lat]) => azimuthalPointForLocation({lon,lat}));
+    return points.length ? `M${points.map(point => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join("L")}Z` : "";
+  })).join("");
 }
 
 function azimuthalGrid() {
@@ -396,10 +407,15 @@ function renderAzimuthalMap() {
   $("#azimuthal-grid").innerHTML = azimuthalGrid();
   const empty = $("#azimuthal-empty");
   if (!validStationLocation(stationLocation)) {
+    $("#azimuthal-land").innerHTML = "";
     $("#azimuthal-pins").innerHTML = "";
     empty.hidden = false;
     return;
   }
+  $("#azimuthal-land").innerHTML = WORLD_FEATURES.map(feature => {
+    const path = azimuthalLandPath(feature);
+    return path ? `<path class="azimuthal-country" d="${path}" fill-rule="evenodd"></path>` : "";
+  }).join("");
   const visible = (selectedStatus === "all" ? currentMapRows.filter(row => row.status !== "none") : currentMapRows.filter(row => row.status === selectedStatus))
     .filter(row => row.entity && Number.isFinite(row.entity.lat) && Number.isFinite(row.entity.lon));
   $("#azimuthal-pins").innerHTML = visible.map(row => {
@@ -419,7 +435,7 @@ function setMapView(view) {
   document.querySelectorAll("[data-map-view]").forEach(button => button.setAttribute("aria-pressed",String(button.dataset.mapView === activeMapView)));
   $("#map-footer-note").textContent = activeMapView === "world"
     ? "真实国界底图：Natural Earth；小型实体仍以圆点补充显示。"
-    : "大圆方位图仅显示已有联络的可定位实体；圆环表示距站点的地表距离。";
+    : "大圆方位图使用 Natural Earth 陆地底图；圆环表示距站点的地表距离。";
   if (activeMapView === "azimuthal") renderAzimuthalMap();
 }
 
