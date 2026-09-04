@@ -742,6 +742,11 @@ async function downloadFullAdif(endpoint,credentials) {
   }
   const adif = await response.text();
   if (!/<eoh>|<eor>/i.test(adif)) throw new Error("LoTW 没有返回有效的 ADIF 数据。请检查登录信息后重试。");
+  return adif;
+}
+
+async function saveFullAdif(endpoint,credentials) {
+  const adif = await downloadFullAdif(endpoint,credentials);
   const callsign = String(credentials.username || "lotw").toUpperCase().replace(/[^A-Z0-9]+/g,"-").replace(/^-|-$/g,"") || "lotw";
   const date = new Date().toISOString().slice(0,10).replaceAll("-","");
   const blob = new Blob([adif],{type:"application/x-arrl-adif;charset=UTF-8"});
@@ -754,6 +759,17 @@ async function downloadFullAdif(endpoint,credentials) {
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url),60000);
   return {bytes:blob.size};
+}
+
+async function downloadFastLog(endpoint,credentials) {
+  const adif = await downloadFullAdif(endpoint,credentials);
+  const unique = new Map();
+  parseAdif(adif).forEach(qso => unique.set(qsoRecordFingerprint(qso),qso));
+  const qsos = [...unique.values()];
+  if (!qsos.length) throw new Error("LoTW 没有返回任何 QSO。请检查登录信息或稍后重试。");
+  const confirmedQsos = qsos.filter(isConfirmed);
+  applyQsoData(qsos,confirmedQsos,new Intl.DateTimeFormat("zh-CN",{dateStyle:"short",timeStyle:"short"}).format(new Date()));
+  return {qsoCount:qsos.length,confirmedCount:confirmedQsos.length};
 }
 
 function openPaperDialog() {
@@ -782,7 +798,7 @@ $("#connect-form").addEventListener("submit",async event => {
     await downloadLiveLog(config.syncEndpoint,{username:$("#callsign").value.trim(),password:$("#lotw-key").value});
     $("#lotw-key").value = "";
     button.textContent = "完整日志同步成功 ✓";
-    setTimeout(() => { button.textContent = "下载并分析全部 QSO"; },2500);
+    setTimeout(() => { button.textContent = "分块同步（适合大日志）"; },2500);
     $("#award-analysis").scrollIntoView({behavior:"smooth",block:"start"});
   } catch (error) {
     help.hidden = false;
@@ -810,7 +826,7 @@ $("#adif-download-button").addEventListener("click",async event => {
   help.hidden = false;
   help.textContent = "正在一次性请求全部 QSO 原始 ADIF；请勿关闭此页面。";
   try {
-    const result = await downloadFullAdif(config.syncEndpoint,{username:$("#callsign").value.trim(),password:$("#lotw-key").value});
+    const result = await saveFullAdif(config.syncEndpoint,{username:$("#callsign").value.trim(),password:$("#lotw-key").value});
     $("#lotw-key").value = "";
     button.textContent = "ADIF 下载成功 ✓";
     help.textContent = `已下载完整 ADIF（${(result.bytes / 1024 / 1024).toFixed(2)} MiB）。`;
@@ -821,6 +837,43 @@ $("#adif-download-button").addEventListener("click",async event => {
   } finally {
     button.disabled = false;
     syncButton.disabled = false;
+  }
+});
+
+$("#fast-sync-button").addEventListener("click",async event => {
+  const form = $("#connect-form");
+  if (!form.reportValidity()) return;
+  const button = event.currentTarget;
+  const syncButton = $("#connect-form button[type=submit]");
+  const adifButton = $("#adif-download-button");
+  const help = $("#connection-help");
+  const config = window.BETTERLOTW_CONFIG || {};
+  if (!config.syncEndpoint || config.syncEndpoint.startsWith("__")) {
+    help.hidden = false;
+    help.textContent = "同步服务尚未配置，无法快速同步。";
+    return;
+  }
+  button.disabled = true;
+  syncButton.disabled = true;
+  adifButton.disabled = true;
+  button.textContent = "正在一次性下载…";
+  help.hidden = false;
+  help.textContent = "正在一次性请求完整 QSO 并直接分析；日志特别大时请改用分块同步。";
+  $("#sync-progress").hidden = true;
+  try {
+    const result = await downloadFastLog(config.syncEndpoint,{username:$("#callsign").value.trim(),password:$("#lotw-key").value});
+    $("#lotw-key").value = "";
+    button.textContent = "快速同步成功 ✓";
+    help.textContent = `已分析 ${result.qsoCount.toLocaleString()} 条全部 QSO，其中 ${result.confirmedCount.toLocaleString()} 条已确认。`;
+    setTimeout(() => { button.textContent = "快速同步（不分块）"; },2500);
+    $("#award-analysis").scrollIntoView({behavior:"smooth",block:"start"});
+  } catch (error) {
+    help.textContent = error instanceof TypeError && /fetch/i.test(error.message) ? "无法连接 LoTW 同步服务。请检查网络后重试。" : error.message;
+    button.textContent = "重新快速同步";
+  } finally {
+    button.disabled = false;
+    syncButton.disabled = false;
+    adifButton.disabled = false;
   }
 });
 

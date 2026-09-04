@@ -60,7 +60,7 @@ export default {
       // oversized window be split without duplicating records.
       const common = { login:username.trim(), password, qso_query:"1" };
       const query = new URLSearchParams(fullQsoDownload
-        ? { ...common, qso_qsl:"no", qso_qsorxsince:"1900-01-01" }
+        ? { ...common, qso_qsl:"no", qso_qsorxsince:"1900-01-01", qso_qsldetail:"yes" }
         : report === "qso"
         ? { ...common, qso_qsl:"no", qso_qsorxsince:"1900-01-01", qso_startdate:from, qso_enddate:to }
         : { ...common, qso_qsl:"yes", qso_qslsince:"1900-01-01", qso_startdate:from, qso_enddate:to, qso_qsldetail:"yes" }
