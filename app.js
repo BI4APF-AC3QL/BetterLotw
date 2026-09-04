@@ -92,6 +92,10 @@ function parseAdif(adif) {
   }).filter(qso => qso.CALL);
 }
 
+function qsoRecordFingerprint(qso) {
+  return Object.keys(qso).sort().map(key => `${key.length}:${key}${String(qso[key]).length}:${qso[key]}`).join("");
+}
+
 function isConfirmed(qso) {
   return qso.QSL_RCVD === "Y" || qso.LOTW_QSL_RCVD === "Y" || qso.APP_LOTW_QSL_RCVD === "Y" || Boolean(qso.QSLRDATE);
 }
@@ -680,7 +684,7 @@ async function downloadLiveLog(endpoint,credentials) {
   let completedDays = 0;
   let qsoCount = 0;
   let confirmedCount = 0;
-  const reports = { qso:[], qsl:[] };
+  const reports = { qso:new Map(), qsl:new Map() };
 
   for (const report of ["qso","qsl"]) {
     const pending = initialRanges.map(range => ({...range}));
@@ -698,9 +702,9 @@ async function downloadLiveLog(endpoint,credentials) {
       try {
         const data = await requestSyncRange(endpoint,credentials,report,range);
         const rows = parseAdif(data.adif);
-        reports[report].push(...rows);
-        if (report === "qso") qsoCount += rows.length;
-        else confirmedCount += rows.length;
+        rows.forEach(qso => reports[report].set(qsoRecordFingerprint(qso),qso));
+        if (report === "qso") qsoCount = reports.qso.size;
+        else confirmedCount = reports.qsl.size;
         completedDays += rangeDays(range);
       } catch (error) {
         const split = error.rangeTooLarge ? splitSyncRange(range) : null;
@@ -715,8 +719,8 @@ async function downloadLiveLog(endpoint,credentials) {
     }
   }
 
-  const qsos = reports.qso;
-  const confirmedQsos = reports.qsl;
+  const qsos = [...reports.qso.values()];
+  const confirmedQsos = [...reports.qsl.values()];
   if (!qsos.length) throw new Error("LoTW 没有返回任何 QSO。请检查登录信息或稍后重试。");
   applyQsoData(qsos,confirmedQsos,new Intl.DateTimeFormat("zh-CN",{dateStyle:"short",timeStyle:"short"}).format(new Date()));
   setSyncProgress({
